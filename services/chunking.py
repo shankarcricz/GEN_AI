@@ -35,7 +35,6 @@ def semantic_chunk_document(text: str) -> list[dict]:
 
     for line in text.splitlines():
         classification = classify_line(line)
-        print(f"Line: {line} | Classification: {classification}")
         stripped = line.strip()
         if not stripped:
             continue
@@ -67,7 +66,11 @@ def semantic_chunk_document(text: str) -> list[dict]:
 if __name__ == "__main__":
     loader = PyPDFLoader("data/Ashish_Resume_final.pdf")
     pages = loader.load()
+
+
+
     text = "\n\n".join([page.page_content for page in pages])
-    chunks = semantic_chunk_document(text)
+    chunks = chunk_document(text)
+
     for i, chunk in enumerate(chunks):
         print(f"Chunk {i+1}:\n{chunk}\n")
