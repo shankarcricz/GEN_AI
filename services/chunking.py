@@ -1,9 +1,25 @@
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 import re
+
+
+
+try:
+    from services.chroma import add_to_chroma_db
+except ModuleNotFoundError:
+    from chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db, fetch_query_results
+
+
 def chunk_document(text:str, chunk_size:int = 400, chunk_overlap:int = 20) -> list[str]:
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=chunk_overlap,separators=["\n\n", "\n", ". ", " ", ""])
     return text_splitter.split_text(text)
+
+
+MONTH_RE = r"(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)[a-z]*\.?"
+DATE_RANGE_RE = re.compile(
+    rf"\b{MONTH_RE}\s+(?:19|20)\d{{2}}\s*[-–—]\s*(?:Present|Current|{MONTH_RE}\s+(?:19|20)\d{{2}})",
+    re.IGNORECASE,
+)
 
 
 def classify_line(line: str) -> str:
@@ -20,7 +36,7 @@ def classify_line(line: str) -> str:
     for keyword in heading_keywords:
         if stripped.lower().startswith(keyword.lower()):
             return "heading"
-    if re.search(r"\b(19|20)\d{2}\b", stripped):
+    if DATE_RANGE_RE.search(stripped):
         return "subheading"
     return "continuation"
 
@@ -30,7 +46,10 @@ def semantic_chunk_document(text: str) -> list[dict]:
     obj = {"heading": None, "bullets": [], "subheading": None}
 
     def flush():
-        if obj["heading"] or obj["bullets"] or obj["subheading"]:
+        # A heading alone (no subheading, no bullets) carries no embeddable
+        # content — it's just the transient state right after seeing a
+        # section header, before its content has arrived.
+        if obj["bullets"] or obj["subheading"]:
             chunk_arr.append(obj.copy())
 
     for line in text.splitlines():
@@ -43,8 +62,13 @@ def semantic_chunk_document(text: str) -> list[dict]:
             flush()
             obj = {"heading": stripped, "bullets": [], "subheading": None}
         elif classification == "subheading":
-            flush()
-            obj = {"heading": obj["heading"], "bullets": [], "subheading": stripped}
+            if obj["subheading"] and not obj["bullets"]:
+                # Same role/entry described across consecutive lines (e.g. a
+                # duplicated title line) — merge instead of flushing an empty chunk.
+                obj["subheading"] = f"{obj['subheading']} {stripped}"
+            else:
+                flush()
+                obj = {"heading": obj["heading"], "bullets": [], "subheading": stripped}
         elif classification == "bullet":
             obj["bullets"].append(stripped)
         else:  # continuation
@@ -57,20 +81,10 @@ def semantic_chunk_document(text: str) -> list[dict]:
     return chunk_arr
 
     
-    
 
 
 
 
 
-if __name__ == "__main__":
-    loader = PyPDFLoader("data/Ashish_Resume_final.pdf")
-    pages = loader.load()
 
 
-
-    text = "\n\n".join([page.page_content for page in pages])
-    chunks = chunk_document(text)
-
-    for i, chunk in enumerate(chunks):
-        print(f"Chunk {i+1}:\n{chunk}\n")

@@ -1,0 +1,8 @@
+<string>:2: DeprecationWarning: `langchain-community` is being sunset and is no longer actively maintained. See https://github.com/langchain-ai/langchain-community/issues/674 for details and migration guidance toward standalone integration packages.
+{'heading': None, 'subheading': None, 'num_bullets': 1, 'preview': 'Sankar N Chennai shankarsddvv@gmail.com +91-6382199087 Linkedin Github'}
+{'heading': 'Skills', 'subheading': None, 'num_bullets': 1, 'preview': '• Python, EDA, scikit-learn, Generative AI, React, RAG, Node.js, Redux'}
+{'heading': 'Experience', 'subheading': None, 'num_bullets': 0, 'preview': None}
+{'heading': 'Experience', 'subheading': 'Engineer 2, Comcast Jul 2024 - Present Comcast | Software Development Engineer 2 (Jul 2024 – Present)', 'num_bullets': 1, 'preview': 'Jira Integration (Node.js & React): Architected and deployed an end-to'}
+{'heading': 'Experience', 'subheading': 'Associate, Cognizant Jul 2021 - Jun 2024 Cognizant | Associate (Jul 2021 – May 2024)', 'num_bullets': 1, 'preview': 'Frontend Optimization: Architected and maintained 20+ reusable React/R'}
+{'heading': 'Education', 'subheading': None, 'num_bullets': 1, 'preview': 'R.M.D ENGINEERING COLLEGE, B.E 2021'}
+{'heading': 'Achievements', 'subheading': None, 'num_bullets': 1, 'preview': 'Recognitions & Awards (Comcast) Runner-Up – Lean Into Action (LIA) Com'}

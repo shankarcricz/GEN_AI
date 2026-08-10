@@ -1,0 +1,19 @@
+<string>:2: DeprecationWarning: `langchain-community` is being sunset and is no longer actively maintained. See https://github.com/langchain-ai/langchain-community/issues/674 for details and migration guidance toward standalone integration packages.
+5 heading 'Experience'
+6 subheading 'Engineer 2, Comcast Jul 2024 - Present'
+7 subheading 'Comcast | Software Development Engineer 2 (Jul 2024 – Present)'
+8 continuation 'Jira Integration (Node.js & React): Architected and deployed an end-to-end ticketing integration within LinX using'
+---
+{'heading': None, 'subheading': None, 'num_bullets': 1, 'preview': 'Sankar N Chennai shankarsddvv@gmail.com +91-6382199087 Linke'}
+{'heading': 'Skills', 'subheading': None, 'num_bullets': 1, 'preview': '• Python, EDA, scikit-learn, Generative AI, React, RAG, Node'}
+{'heading': 'Experience', 'subheading': None, 'num_bullets': 0, 'preview': None}
+{'heading': 'Experience', 'subheading': 'Engineer 2, Comcast Jul 2024 - Present', 'num_bullets': 0, 'preview': None}
+{'heading': 'Experience', 'subheading': 'Comcast | Software Development Engineer 2 (Jul 2024 – Present)', 'num_bullets': 1, 'preview': 'Jira Integration (Node.js & React): Architected and deployed'}
+{'heading': 'Experience', 'subheading': 'Associate, Cognizant Jul 2021 - Jun 2024', 'num_bullets': 0, 'preview': None}
+{'heading': 'Experience', 'subheading': 'Cognizant | Associate (Jul 2021 – May 2024)', 'num_bullets': 1, 'preview': 'Frontend Optimization: Architected and maintained 20+ reusab'}
+{'heading': 'Education', 'subheading': None, 'num_bullets': 0, 'preview': None}
+{'heading': 'Education', 'subheading': 'R.M.D ENGINEERING COLLEGE, B.E 2021', 'num_bullets': 0, 'preview': None}
+{'heading': 'Achievements', 'subheading': None, 'num_bullets': 1, 'preview': 'Recognitions & Awards (Comcast)'}
+{'heading': 'Achievements', 'subheading': 'Runner-Up – Lean Into Action (LIA) Competition (2025): Designed and prototyped a centralized Data Center', 'num_bullets': 1, 'preview': 'Sustainability Dashboard tracking Scope 1, 2, and 3 $\\text{C'}
+{'heading': 'Achievements', 'subheading': 'Spotlight Award (Q1 2026): Recognized for exceptional engineering contributions directly driving the successful', 'num_bullets': 1, 'preview': 'production release and stabilization of the LinX platform.'}
+{'heading': 'Achievements', 'subheading': 'Sapphire Award (2025): Awarded for outstanding individual quarterly contributions and technical execution.', 'num_bullets': 0, 'preview': None}
