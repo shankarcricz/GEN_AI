@@ -1,0 +1,56 @@
+About the job
+1 Role** Front End Developer – React
+
+2 Required Technical Skill Set**
+
+React.js, Java, Spring Boot, JavaScript, TypeScript, HTML5, CSS3, REST APIs, Microservices, Git
+
+3 Desired Experience Range** 6–10 years
+
+4 Location of Requirement - PAN India
+
+
+
+Desired Competencies (Technical/ Behavioral Competency)
+
+Must-Have**
+
+(Ideally should not be more than 3-5)
+
+Strong hands-on experience in React.js, JavaScript, and TypeScript development
+Experience in Java and Spring Boot for backend service development
+Proficiency in building responsive, user-friendly, and scalable web applications
+Experience in REST API development and frontend-backend integration
+Strong understanding of HTML5, CSS3, and modern UI development practices
+Knowledge of microservices architecture and API-driven development
+Experience with Git, CI/CD pipelines, and Agile methodologies
+Strong troubleshooting, debugging, and problem-solving skills
+Good-to-Have
+
+Experience with Redux, Context API, or other state management libraries
+Knowledge of cloud platforms such as AWS, Azure, or GCP
+Experience with Docker and Kubernetes
+Exposure to automated testing frameworks such as Jest, Cypress, or JUnit
+Experience working in large-scale enterprise applications
+Responsibility of / Expectations from the Role 
+
+Design, develop, and maintain responsive frontend applications using React.js
+Develop and support backend services and APIs using Java and Spring Boot
+Collaborate with UI/UX designers to implement intuitive user interfaces
+Integrate frontend components with backend services and third-party APIs
+Ensure application performance, scalability, security, and reliability
+Participate in architecture discussions and technical design reviews
+Write clean, reusable, and maintainable code following best practices
+Conduct code reviews and ensure adherence to coding standards
+Troubleshoot and resolve production issues and performance bottlenecks
+Work closely with cross-functional teams in an Agile environment
+Contribute to continuous improvement of development processes and engineering practices
+Stay updated with emerging frontend and backend technologies and recommend improvements
+
+Requirements added by the job poster
+
+• 6+ years of work experience with Spring Framework
+
+• 6+ years of work experience with Spring Boot
+
+• 6+ years of work experience with React.js

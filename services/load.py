@@ -12,16 +12,23 @@ from chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db
 
 
 def load_pdf_and_add_to_chroma():
-    loader = PyPDFLoader("data/shankar_2026_resume.pdf")
-    pages = loader.load()
+    loader_Resume = PyPDFLoader("data/shankar_2026_resume.pdf")
+    pages = loader_Resume.load()
     
     
     
     text = "\n\n".join([page.page_content for page in pages])
-    chunks = semantic_chunk_document(text)
+    chunks = semantic_chunk_document(text, pages[0].metadata)
+
+
     
     for i, chunk in enumerate(chunks):
+        # print(chunk)
+        # print("-" * 50)
         add_to_chroma_db(chunk)
+
+
+
 
 def query():
     query = "Comcast Linx"
@@ -49,8 +56,11 @@ def questions() -> list[str]:
     return interviewQuestions
 
 
+
+
+
 if __name__ == "__main__":
-    # load_pdf_and_add_to_chroma()
+    load_pdf_and_add_to_chroma()
 
     count = get_count_from_chroma_db()
     print(f"Total entries in Chroma DB: {count}")
@@ -59,11 +69,15 @@ if __name__ == "__main__":
     for question in questions:
         results = retrieve(question, n_results=5, max_distance=1)
 
-        generated_text = generate_text("\n".join([r["document"] for r in results]), question)
-        print(f"Question: {question}")
-        print("\n")
-        print(f"Generated Answer: {generated_text}")
-        print("-" * 50)
+        # generated_text = generate_text("\n".join([r["document"] for r in results]), question)
+        # print(f"Question: {question}")
+        # print("\n")
+        # print(f"Generated Answer: {generated_text}")
+        # print("-" * 50)
 
-    # print(type(results))
+        print(f"Result : {results}")
+        print("-" * 50)
+        break
+
+    print(type(results))
    

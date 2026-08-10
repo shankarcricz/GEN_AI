@@ -22,28 +22,44 @@ DATE_RANGE_RE = re.compile(
 )
 
 
-def classify_line(line: str) -> str:
+def classify_line(line: str, source_file: str = None) -> str:
     stripped = line.strip()
     bullet_keywords = ["-", "*", "•"]
-    heading_keywords = ["Objective", "Education", "Experience", "Skills", "Projects",
+    heading_keywords_resume = ["Objective", "Education", "Experience", "Skills", "Projects",
                          "Certifications", "Awards", "Publications", "Interests",
                          "References", "Positions of Responsibility", "Summary", "Profile",
                          "Contact", "Hobbies", "Achievements", "Professional Summary",
                          "Technical Skills", "Work Experience", "Academic Background"]
-
+    heading_keywords_job_description = ["Job Title", "Responsibilities", "Requirements", "Qualifications","Location","Level"
+                         "Skills", "Experience", "Education", "Benefits", "Company Overview","About","Opportunity","Key overview","role overview"]
+    
+    resume_file_types = ["resume","curriculum","cv"]
+    jd_file_types = ["jd","job description","job"]
+    heading_keywords = []
+    for f in resume_file_types:
+        if f in source_file.lower():
+            heading_keywords = heading_keywords_resume
+            break
+    if len(heading_keywords)==0:
+        for f in jd_file_types:
+            if f in source_file.lower():
+                heading_keywords = heading_keywords_job_description
+    
     if stripped.startswith(tuple(bullet_keywords)):
         return "bullet"
+    
+
     for keyword in heading_keywords:
-        if stripped.lower().startswith(keyword.lower()):
+        if keyword.lower() in stripped.lower():
             return "heading"
     if DATE_RANGE_RE.search(stripped):
         return "subheading"
     return "continuation"
 
 
-def semantic_chunk_document(text: str) -> list[dict]:
+def semantic_chunk_document(text: str, metadata: dict) -> list[dict]:
     chunk_arr = []
-    obj = {"heading": None, "bullets": [], "subheading": None}
+    obj = {"heading": None, "bullets": [], "subheading": None, "source_file": metadata.get("source", None),}
 
     def flush():
         # A heading alone (no subheading, no bullets) carries no embeddable
@@ -53,14 +69,14 @@ def semantic_chunk_document(text: str) -> list[dict]:
             chunk_arr.append(obj.copy())
 
     for line in text.splitlines():
-        classification = classify_line(line)
+        classification = classify_line(line, source_file=metadata.get("source", None))
         stripped = line.strip()
         if not stripped:
             continue
 
         if classification == "heading":
             flush()
-            obj = {"heading": stripped, "bullets": [], "subheading": None}
+            obj = {"heading": stripped, "bullets": [], "subheading": None, "source_file": metadata.get("source", None)}
         elif classification == "subheading":
             if obj["subheading"] and not obj["bullets"]:
                 # Same role/entry described across consecutive lines (e.g. a
@@ -68,9 +84,8 @@ def semantic_chunk_document(text: str) -> list[dict]:
                 obj["subheading"] = f"{obj['subheading']} {stripped}"
             else:
                 flush()
-                obj = {"heading": obj["heading"], "bullets": [], "subheading": stripped}
-        elif classification == "bullet":
-            obj["bullets"].append(stripped)
+                obj = {"heading": obj["heading"], "bullets": [], "subheading": stripped, "source_file": metadata.get("source", None)}
+        elif classification == "bullet": obj["bullets"].append(stripped)
         else:  # continuation
             if obj["bullets"]:
                 obj["bullets"][-1] += " " + stripped

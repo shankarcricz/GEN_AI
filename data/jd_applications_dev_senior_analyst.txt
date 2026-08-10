@@ -1,0 +1,96 @@
+About the job
+
+The Applications Development Senior Programmer Analyst is an intermediate level position responsible for participation in the establishment and implementation of new or revised application systems and programs in coordination with the Technology team. The overall objective of this role is to contribute to applications systems analysis and programming activities.
+
+Responsibilities:
+
+- Conduct tasks related to feasibility studies, time and cost estimates, IT planning, risk technology, applications development, model development, and establish and implement new or revised applications systems and programs to meet specific business needs or user areas
+- Monitor and control all phases of development process and analysis, design, construction, testing, and implementation as well as provide user and operational support on applications to business users
+- Utilize in-depth specialty knowledge of applications development to analyze complex problems/issues, provide evaluation of business process, system process, and industry standards, and make evaluative judgement
+- Recommend and develop security measures in post implementation analysis of business usage to ensure successful system design and functionality
+- Consult with users/clients and other technology groups on issues, recommend advanced programming solutions, and install and assist customer exposure systems
+- Ensure essential procedures are followed and help define operating standards and processes
+- Serve as advisor or coach to new or lower level analysts
+- Has the ability to operate with a limited level of direct supervision
+- Can exercise independence of judgement and autonomy
+- Acts as SME to senior stakeholders and/or other team members
+- Appropriately assess risk when business decisions are made, demonstrating particular consideration for the firm's reputation and safeguarding Citigroup, its clients and assets, by driving compliance with applicable laws, rules and regulations, adhering to Policy, applying sound ethical judgment regarding personal behavior, conduct and business practices, and escalating, managing and reporting control issues with transparency
+
+Recommended Qualifications:
+
+This role requires a highly experienced and technically proficient individual to lead the development and delivery of critical user interfaces and frontend applications within the React ecosystem. The ideal candidate will combine deep frontend technical expertise with strong leadership and project management capabilities to drive innovation, ensure exceptional user experiences, and facilitate the successful execution of strategic initiatives.
+
+Experience & Technical Leadership:
+
+- 7+ years of progressive experience in Frontend/Full-Stack Applications Development or Systems Analysis, with a substantial and demonstrated focus on modern UI technologies, especially React.js
+- Proven experience in successfully leading, architecting, and delivering complex frontend software development projects from conceptualization to production deployment
+- Demonstrated expertise in technical leadership, including providing guidance, mentorship, and conducting comprehensive code reviews for frontend development teams
+- Subject Matter Expert (SME) in React application development, encompassing advanced knowledge of React.js, its ecosystem, best practices, and design patterns
+- Strong proficiency in software architecture principles, frontend design patterns (e.g., MVVM, unidirectional data flow), and object-oriented/functional programming paradigms
+
+Core Technical Proficiency:
+
+- Expert-level knowledge of JavaScript (ES6+) and TypeScript, with extensive hands-on experience in building scalable, resilient, and high-performance single-page applications (SPAs) and Progressive Web Apps (PWAs)
+- Deep understanding of the React.js library, including Hooks, Context API, component lifecycle, and performance optimization techniques
+- Extensive experience with state management libraries (e.g., Redux, Zustand, Recoil) and routing libraries (e.g., React Router)
+- Strong command of modern web technologies: HTML5, CSS3, and CSS preprocessors (e.g., Sass, Less) or CSS-in-JS solutions (e.g., Styled Components, Emotion)
+- Proficiency in building responsive and adaptive user interfaces, ensuring cross-browser compatibility and accessibility (WCAG standards)
+- Proven expertise in consuming secure RESTful APIs and GraphQL endpoints
+- Hands-on experience with frontend build tools (e.g., Webpack, Vite, Rollup) and package managers (npm, Yarn)
+- Experience with CI/CD systems (e.g., Jenkins, GitLab CI, GitHub Actions) for automated frontend testing, building, and deployment pipelines
+- Familiarity with cloud platforms (e.g., AWS, Azure, GCP) and concepts of containerization (Docker, Kubernetes) for deploying frontend applications
+- Advanced troubleshooting, debugging, and performance optimization skills for client-side applications
+- Proficiency in automated frontend testing frameworks (e.g., Jest, React Testing Library, Cypress, Playwright) and a strong advocate for Test-Driven Development (TDD)
+- Solid understanding of secure coding practices and application security principles relevant to frontend development (e.g., XSS, CSRF protection)
+- Expertise in modern version control systems, particularly Git, including advanced branching strategies and pull request workflows
+
+Methodology & Professional Skills:
+
+- Deep understanding and practical experience with Agile/Scrum methodologies and fostering collaborative development environments
+- Exceptional ability to adjust priorities dynamically and manage multiple tasks effectively as circumstances dictate
+- Demonstrated leadership and project management skills, including stakeholder communication and resource allocation
+- Consistently demonstrates clear, concise, and effective written and verbal communication skills for technical and non-technical audiences
+
+Polyglot Programming Exposure:
+
+- Experience or familiarity with backend development using Node.js (e.g., Express.js, NestJS) or other languages relevant to full-stack development
+
+Big Data & Analytics Exposure:
+
+- Exposure to Big Data technologies (e.g., Apache Spark, Hadoop, Kafka) and experience in building data processing pipelines
+- Familiarity with data warehousing concepts and relevant tools
+
+Artificial Intelligence (AI) Proficiency:
+
+- Practical experience using AI tools such as Copilot, Devin, Windsurf, Antigravity, and Claude
+- Experience with Agentic AI tools and their application in development workflows
+- Understanding and practical application of Generative AI concepts and tool usage
+
+Cloud & Industry Certifications:
+
+- Relevant cloud certifications (e.g., AWS Certified Developer, Azure Developer Associate, Google Cloud Professional Developer)
+- Industry certifications in project management (e.g., PMP) or Agile methodologies (e.g., CSM, CSPO)
+
+Domain Knowledge:
+
+- Understanding of financial services industry domain, regulatory requirements, and compliance standards
+
+Education:
+
+Bachelor's degree/University degree or equivalent experience
+
+This job description provides a high-level review of the types of work performed. Other job-related duties may be assigned as required.
+
+Job Family Group: Technology
+
+Job Family: Applications Development
+
+Time Type: Full time
+
+Most Relevant Skills
+
+Please see the requirements listed above.
+
+Other Relevant Skills
+
+For complementary skills, please see above and/or contact the recruiter.
