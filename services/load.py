@@ -1,13 +1,15 @@
 
+from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
 import re
-from embed import generate_text
+from embed import generate_text, llm_chunk
 
 
 
 from chunking import semantic_chunk_document
 from chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db, fetch_query_results, filter_results_by_distance
+
 
 
 
@@ -18,16 +20,33 @@ def load_pdf_and_add_to_chroma():
     
     
     text = "\n\n".join([page.page_content for page in pages])
-    chunks = semantic_chunk_document(text, pages[0].metadata)
+    # print(text)
+    # chunks = semantic_chunk_document(text, pages[0].metadata)
+    chunks = llm_chunk(text)
+    print(chunks)
 
+    source_file = pages[0].metadata.get('source', 'Unknown')
+    
+    for i, chunk in enumerate(chunks):
+        # print(chunk)
+        # print("-" * 50)
+        add_to_chroma_db(chunk, source_file)
+
+def load_txt_and_add_to_chroma():
+    loader_txt = TextLoader("data/jd_applications_dev_senior_analyst.txt")
+    pages = loader_txt.load()
+    
+    
+    
+    text = "\n\n".join([page.page_content for page in pages])
+    chunks = llm_chunk(text)
+    source_file = pages[0].metadata.get('source', 'Unknown')
 
     
     for i, chunk in enumerate(chunks):
         # print(chunk)
         # print("-" * 50)
-        add_to_chroma_db(chunk)
-
-
+        add_to_chroma_db(chunk, source_file)
 
 
 def query():
@@ -35,8 +54,8 @@ def query():
     results = fetch_query_results(query, n_results=2)
     return results
 
-def retrieve(query:str, n_results:int = 5, max_distance:float = 0.5):
-    results = fetch_query_results(query, n_results=n_results, max_distance=max_distance)
+def retrieve(query:str, n_results:int = 5, max_distance:float = 0.5, filterBy:str="resume"):
+    results = fetch_query_results(query, n_results=n_results, max_distance=max_distance, filterBy=filterBy)
     return results
 
 
@@ -60,24 +79,25 @@ def questions() -> list[str]:
 
 
 if __name__ == "__main__":
-    load_pdf_and_add_to_chroma()
+    # load_pdf_and_add_to_chroma()
+    # load_txt_and_add_to_chroma()
 
     count = get_count_from_chroma_db()
     print(f"Total entries in Chroma DB: {count}")
     # results = query()
     questions = questions()
     for question in questions:
-        results = retrieve(question, n_results=5, max_distance=1)
+        results = retrieve(question, n_results=5, max_distance=1, filterBy = "data/shankar_2026_resume.pdf")
 
         # generated_text = generate_text("\n".join([r["document"] for r in results]), question)
         # print(f"Question: {question}")
         # print("\n")
         # print(f"Generated Answer: {generated_text}")
         # print("-" * 50)
-
+        print(f"Question : {question}")
+        print("\n")
         print(f"Result : {results}")
         print("-" * 50)
-        break
 
-    print(type(results))
+    
    

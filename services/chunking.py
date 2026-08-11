@@ -35,15 +35,8 @@ def classify_line(line: str, source_file: str = None) -> str:
     
     resume_file_types = ["resume","curriculum","cv"]
     jd_file_types = ["jd","job description","job"]
-    heading_keywords = []
-    for f in resume_file_types:
-        if f in source_file.lower():
-            heading_keywords = heading_keywords_resume
-            break
-    if len(heading_keywords)==0:
-        for f in jd_file_types:
-            if f in source_file.lower():
-                heading_keywords = heading_keywords_job_description
+    heading_keywords = heading_keywords_resume
+    
     
     if stripped.startswith(tuple(bullet_keywords)):
         return "bullet"

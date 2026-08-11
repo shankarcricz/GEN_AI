@@ -1,0 +1,20 @@
+# FastAPI & server
+fastapi
+uvicorn[standard]
+
+# LangChain
+langchain
+langchain-community
+langchain-text-splitters
+
+# PDF loading
+pypdf
+
+# Vector store
+chromadb
+
+# Google GenAI (Gemini embeddings)
+google-genai
+
+# Environment variables
+python-dotenv

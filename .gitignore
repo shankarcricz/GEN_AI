@@ -6,6 +6,9 @@ env/
 DB/
 .DB/
 
+.vscode
+
+
 # Python cache
 __pycache__/
 *.pyc

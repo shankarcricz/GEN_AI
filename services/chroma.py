@@ -5,13 +5,13 @@ try:
 except ModuleNotFoundError:
     from embed import embed_text
 
-db_chroma_path = "./DB/chroma_db7_shankar"
+db_chroma_path = "./DB/chroma_db9llm_shankar"
 
 
 client = chromadb.PersistentClient(path=db_chroma_path) 
 collection = client.get_or_create_collection(name="job_fit_copilot")
 
-def add_to_chroma_db(resume_text: dict):
+def add_to_chroma_db(resume_text: dict, source_file: str):
     display_document = " ".join(resume_text["bullets"]).strip()
     text_to_embed = " " + (resume_text["subheading"] or "") + " " + (resume_text["heading"] or "") + " ".join(resume_text["bullets"]).strip()
     text_to_embed = text_to_embed.strip()
@@ -21,22 +21,23 @@ def add_to_chroma_db(resume_text: dict):
         return
     text_embedding = embed_text(text_to_embed)
     collection.upsert(
-        ids=[f"{resume_text['source_file']}:{resume_text['heading']}:{resume_text['subheading']}"],
+        ids=[f"{source_file}:{resume_text['heading']}:{resume_text['subheading']}"],
         documents=[display_document],
         embeddings=[text_embedding],
         metadatas=[{
             "heading": resume_text["heading"] or "",
             "subheading": resume_text["subheading"] or "",
-            "source_file": resume_text["source_file"] or "",
+            "source_file": source_file,
         }],
     )
 
-def fetch_query_results(query: str, n_results: int = 5, max_distance: float = 1.0) -> list[dict]:
+def fetch_query_results(query: str, n_results: int = 5, max_distance: float = 1.0, filterBy : str = "resume") -> list[dict]:
     query_embedding = embed_text(query)
     results = collection.query(
         query_embeddings=[query_embedding],
         n_results=n_results,
         # include=["metadatas", "documents", "distances", "embeddings"],
+        where={"source_file": filterBy}
     )
 
     return filter_results_by_distance(results, max_distance=max_distance)
