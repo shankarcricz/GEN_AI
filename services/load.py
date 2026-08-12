@@ -1,4 +1,5 @@
 
+from opentelemetry.metrics import obj
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
@@ -62,17 +63,30 @@ def retrieve(query:str, n_results:int = 5, max_distance:float = 0.5, filterBy:st
 def questions() -> list[str]:
     interviewQuestions = [
     "What were the roles & responsibilities at Comcast?",
-    "Do you have any coaching experience?",
-    "Where have you used React components throughout your experience?",
-    "Do you know kubernetes and kafka?",
-    "Do you have any common points in both of your work experiences?",
-    "Have you worked on Gen AI at Amazon?",
-    "Are you good at development?",
-    "What is your favorite movie?",
-    "Are you good at communicating ideas with colleagues?",
-    "Can you own modules end to end?"
+    # "Do you have any coaching experience?",
+    # "Where have you used React components throughout your experience?",
+    # "Do you know kubernetes and kafka?",
+    # "Do you have any common points in both of your work experiences?",
+    # "Have you worked on Gen AI at Amazon?",
+    # "Are you good at development?",
+    # "What is your favorite movie?",
+    # "Are you good at communicating ideas with colleagues?",
+    # "Can you own modules end to end?"
     ]
     return interviewQuestions
+
+
+def llm_response(query:str) -> object:
+    results = retrieve(query, n_results=5, max_distance=1, filterBy = "data/shankar_2026_resume.pdf")
+    generated_text = {"answer":None, "citations":[]}
+    generated_text["answer"] = generate_text("\n".join([r["document"] for r in results]), query)
+    for r in results[:2]:
+        generated_text["citations"].append({
+            "source_file": r["metadata"]["source_file"],
+            "chunk": r["document"]
+        })
+    return generated_text
+
 
 
 
@@ -82,22 +96,26 @@ if __name__ == "__main__":
     # load_pdf_and_add_to_chroma()
     # load_txt_and_add_to_chroma()
 
+    questions = questions()
+    results = {}
+    for question in questions:
+        generated_text = llm_response(question)
+        results[question] = generated_text
+    print(results)
+
     count = get_count_from_chroma_db()
     print(f"Total entries in Chroma DB: {count}")
     # results = query()
-    questions = questions()
-    for question in questions:
-        results = retrieve(question, n_results=5, max_distance=1, filterBy = "data/shankar_2026_resume.pdf")
-
-        # generated_text = generate_text("\n".join([r["document"] for r in results]), question)
+    
         # print(f"Question: {question}")
         # print("\n")
         # print(f"Generated Answer: {generated_text}")
         # print("-" * 50)
-        print(f"Question : {question}")
-        print("\n")
-        print(f"Result : {results}")
-        print("-" * 50)
+        
+        # print(f"Question : {question}")
+        # print("\n")
+        # print(f"Result : {results}")
+        # print("-" * 50)
 
     
    
