@@ -1,53 +1,72 @@
 
-from opentelemetry.metrics import obj
+from services.embed import classification_of_question
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
+import pypdf
+
+from io import BytesIO
 import re
-from embed import generate_text, llm_chunk
+from fastapi import UploadFile, File
+from services.embed import generate_text, llm_chunk
 
 
 
-from chunking import semantic_chunk_document
-from chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db, fetch_query_results, filter_results_by_distance
+from services.chunking import semantic_chunk_document
+from services.chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db, fetch_query_results, filter_results_by_distance
 
 
 
 
-def load_pdf_and_add_to_chroma():
-    loader_Resume = PyPDFLoader("data/shankar_2026_resume.pdf")
-    pages = loader_Resume.load()
-    
-    
-    
-    text = "\n\n".join([page.page_content for page in pages])
-    # print(text)
-    # chunks = semantic_chunk_document(text, pages[0].metadata)
-    chunks = llm_chunk(text)
+async def load_pdf_and_add_to_chroma(pdf_bytes: bytes, fileType: str ):
+    reader = pypdf.PdfReader(BytesIO(pdf_bytes))
+
+   
+    source = ''
+
+    page_texts = []
+    for page in reader.pages:
+        extracted = page.extract_text()
+        if extracted:
+            page_texts.append(extracted)
+
+    if not page_texts:
+        raise ValueError("Could not extract readable text from the PDF.")
+
+    # 3. Merge and chunk
+    text = "\n\n".join(page_texts)
+
+    chunks = await llm_chunk(text)
+
     print(chunks)
 
-    source_file = pages[0].metadata.get('source', 'Unknown')
-    
     for i, chunk in enumerate(chunks):
-        # print(chunk)
-        # print("-" * 50)
-        add_to_chroma_db(chunk, source_file)
-
-def load_txt_and_add_to_chroma():
-    loader_txt = TextLoader("data/jd_applications_dev_senior_analyst.txt")
-    pages = loader_txt.load()
-    
-    
-    
-    text = "\n\n".join([page.page_content for page in pages])
-    chunks = llm_chunk(text)
-    source_file = pages[0].metadata.get('source', 'Unknown')
+        await add_to_chroma_db(chunk, fileType)
 
     
-    for i, chunk in enumerate(chunks):
-        # print(chunk)
-        # print("-" * 50)
-        add_to_chroma_db(chunk, source_file)
+
+
+    
+    # for i, chunk in enumerate(text):
+    #     print(chunk)
+    #     print("-" * 50)
+        # add_to_chroma_db(chunk, source)
+
+# def load_txt_and_add_to_chroma():
+#     loader_txt = TextLoader("data/jd_applications_dev_senior_analyst.txt")
+#     pages = loader_txt.load()
+    
+    
+    
+#     text = "\n\n".join([page.page_content for page in pages])
+#     chunks = llm_chunk(text)
+#     source_file = pages[0].metadata.get('source', 'Unknown')
+
+    
+#     for i, chunk in enumerate(chunks):
+#         # print(chunk)
+#         # print("-" * 50)
+#         add_to_chroma_db(chunk, source_file)
 
 
 def query():
@@ -62,24 +81,39 @@ def retrieve(query:str, n_results:int = 5, max_distance:float = 0.5, filterBy:st
 
 def questions() -> list[str]:
     interviewQuestions = [
-    "What were the roles & responsibilities at Comcast?",
-    # "Do you have any coaching experience?",
+    # "What were the roles & responsibilities at Comcast?",
+    "Do you have any coaching experience?",
     # "Where have you used React components throughout your experience?",
     # "Do you know kubernetes and kafka?",
     # "Do you have any common points in both of your work experiences?",
     # "Have you worked on Gen AI at Amazon?",
     # "Are you good at development?",
-    # "What is your favorite movie?",
+    "What is your favorite movie?",
     # "Are you good at communicating ideas with colleagues?",
     # "Can you own modules end to end?"
     ]
     return interviewQuestions
 
 
-def llm_response(query:str) -> object:
-    results = retrieve(query, n_results=5, max_distance=1, filterBy = "data/shankar_2026_resume.pdf")
-    generated_text = {"answer":None, "citations":[]}
-    generated_text["answer"] = generate_text("\n".join([r["document"] for r in results]), query)
+async def llm_response(query:str) -> object:
+    raw_classification = await classification_of_question(query)
+    raw_classification = raw_classification.strip().lower()
+
+    # Parse LLM output — it may return verbose text; extract the known keyword
+    if "both" in raw_classification:
+        filterBy = "both"
+    elif "jd" in raw_classification or "job description" in raw_classification:
+        filterBy = "jd"
+    else:
+        filterBy = "resume"  # default fallback
+
+    print(f"[DEBUG] query='{query}' | raw_classification='{raw_classification}' | filterBy='{filterBy}'")
+
+    results = retrieve(query, n_results=5, max_distance=1, filterBy=filterBy)
+    print(f"[DEBUG] results count: {len(results)}")
+
+    generated_text = {"answer":None, "citations":[],"query_classifiction":raw_classification}
+    generated_text["answer"] = await generate_text("\n".join([r["document"] for r in results]), query)
     for r in results[:2]:
         generated_text["citations"].append({
             "source_file": r["metadata"]["source_file"],

@@ -4,14 +4,22 @@ try:
     from services.embed import embed_text
 except ModuleNotFoundError:
     from embed import embed_text
+import os
 
-db_chroma_path = "./DB/chroma_db9llm_shankar"
+
+import chromadb
+
+client = chromadb.CloudClient(
+  api_key=os.getenv("CHROMADB_API_KEY"),
+  tenant='59bb4bd3-b4e7-4be9-ad92-8e90e5226597',
+  database='genai'
+)
 
 
-client = chromadb.PersistentClient(path=db_chroma_path) 
+# client = chromadb.PersistentClient(path=db_chroma_path) 
 collection = client.get_or_create_collection(name="job_fit_copilot")
 
-def add_to_chroma_db(resume_text: dict, source_file: str):
+async def add_to_chroma_db(resume_text: dict, source_file: str):
     display_document = " ".join(resume_text["bullets"]).strip()
     text_to_embed = " " + (resume_text["subheading"] or "") + " " + (resume_text["heading"] or "") + " ".join(resume_text["bullets"]).strip()
     text_to_embed = text_to_embed.strip()
@@ -33,11 +41,16 @@ def add_to_chroma_db(resume_text: dict, source_file: str):
 
 def fetch_query_results(query: str, n_results: int = 5, max_distance: float = 1.0, filterBy : str = "resume") -> list[dict]:
     query_embedding = embed_text(query)
+    filterBy = filterBy.strip().lower()
+    if filterBy == "both":
+        where_clause = {"source_file": {"$in": ["resume", "jd"]}}
+    else:
+        where_clause = {"source_file": filterBy}
     results = collection.query(
         query_embeddings=[query_embedding],
         n_results=n_results,
         # include=["metadatas", "documents", "distances", "embeddings"],
-        where={"source_file": filterBy}
+        where=where_clause
     )
 
     return filter_results_by_distance(results, max_distance=max_distance)

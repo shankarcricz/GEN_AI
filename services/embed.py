@@ -17,15 +17,77 @@ def embed_text(text: str) -> list[float]:
     )
     return result.embeddings[0].values
 
-def generate_text(retrieved_chunks:str, query:str) -> str:
-    prompt = f"Based on the following retrieved information: {retrieved_chunks}\n\nAnswer the question: {query}. answer if the context reasonably supports it, even if it takes a small inferential step (e.g., mentorship implies coaching), but refuse if the context has nothing relevant to draw on at all."
+async def generate_text(retrieved_chunks:str, query:str) -> str:
+    prompt = f"""
+    <instructions>
+    You are an AI interview coach. Your job is to help candidates prepare for interviews by answering their questions based on the context provided.If needed do inferential reasoning to answer the question but make sure the repsone still stays relevant to the context provided and query provided. Dont exaggerate outside of the resume context at all
+    </instructions>
+    <example>
+    <context>
+    - worked at comcast as software engineer
+    - worked on improving the performance of the application
+    - worked on adding new features to the application
+    
+    </context>
+    <question>
+    what were the roles and responsibilities at comcast and lina?
+    </question>
+    <answer>
+    At Comcast, I worked as a software engineer where I was responsible for developing and maintaining the Comcast Linx platform. I was also involved in the development of new features and the improvement of existing ones.
+    </answer>
+    </example>
+   
+
+    Here is the input below:
+
+    <context>
+    {retrieved_chunks}
+    </context>
+    
+    <question>
+    {query}
+    </question>
+    <answer>
+    """
     response = client.interactions.create(
-        model="gemini-3.6-flash",
+        model="gemini-3.5-flash",
         input=prompt
     )
     return response.output_text
 
-def llm_chunk(text:str):
+async def classification_of_question(query:str):
+    prompt = f"""You are a document routing classifier. Given an interview question, decide which document(s) are needed to answer it.
+
+    RULES:
+    - Output ONLY one word: resume, jd, or both. No explanation, no punctuation, just the single word.
+    - Use "resume" when the question is about the CANDIDATE — their skills, experience, background, projects, achievements, comfort with technologies, or anything about who they are.
+    - Use "jd" ONLY when the question is specifically about the JOB itself — salary, company culture, job requirements, location, benefits.
+    - Use "both" when BOTH the candidate's background AND the job details are needed to answer.
+
+    EXAMPLES:
+    Q: What are the roles and responsibilities at Comcast?  → resume
+    Q: Are you comfortable with React?                      → resume
+    Q: Do you have experience with Machine Learning?        → resume
+    Q: What are your key skills?                           → resume
+    Q: What is the salary for this role?                   → jd
+    Q: What does the job require in terms of experience?   → jd
+    Q: Are your skills a good match for this position?     → both
+
+    Question: {query}
+    Answer:"""
+    response = client.interactions.create(
+        model="gemini-3.5-flash",
+        input=prompt
+    )
+    return response.output_text
+    
+
+
+async def llm_chunk(text:str):
+
+
+
+
     prompt = f"""You are a document structuring specialist. Convert the raw text below into a structured JSON array of sections.
 
         DEFINITIONS:
