@@ -5,6 +5,8 @@ try:
 except ModuleNotFoundError:
     from embed import embed_text
 import os
+from dotenv import load_dotenv
+load_dotenv()
 
 
 import chromadb
