@@ -9,7 +9,7 @@ load_dotenv()
 
 
 
-client = genai.Client(api_key=os.getenv("API_KEY"))
+client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 def embed_text(text: str) -> list[float]:
     result = client.models.embed_content(
         model="gemini-embedding-2",
