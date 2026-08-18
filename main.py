@@ -6,7 +6,9 @@ from services.load import load_pdf_and_add_to_chroma
 app = FastAPI()
 
 origins = [
-    "http://localhost:3000"
+    "http://localhost:3000",
+    "http://genai-shankar-rsbuild.s3-website.eu-north-1.amazonaws.com",
+    
 ]
 
 app.add_middleware(
