@@ -1,8 +1,8 @@
 
+from services.rate_limit import rate_limited_async
 import json
 from dotenv import load_dotenv
 from google import genai
-
 import os
 load_dotenv()
 
@@ -10,6 +10,8 @@ load_dotenv()
 
 
 client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+
+# @rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
 def embed_text(text: str) -> list[float]:
     result = client.models.embed_content(
         model="gemini-embedding-2",
@@ -17,6 +19,8 @@ def embed_text(text: str) -> list[float]:
     )
     return result.embeddings[0].values
 
+
+@rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
 async def generate_text(retrieved_chunks:str, query:str) -> str:
     prompt = f"""
     <instructions>
@@ -55,6 +59,8 @@ async def generate_text(retrieved_chunks:str, query:str) -> str:
     )
     return response.output_text
 
+
+@rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
 async def classification_of_question(query:str):
     prompt = f"""You are a document routing classifier. Given an interview question, decide which document(s) are needed to answer it.
 
@@ -82,7 +88,7 @@ async def classification_of_question(query:str):
     return response.output_text
     
 
-
+@rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
 async def llm_chunk(text:str):
 
 
@@ -124,4 +130,47 @@ async def llm_chunk(text:str):
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[-1]  # drop opening fence line
         raw = raw.rsplit("```", 1)[0]  # drop closing fence
+    return json.loads(raw)
+
+@rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
+async def llm_judge(question: str, retrieved_chunks: str, answer: str) -> dict:
+    prompt = f"""
+    <instructions>
+    You are evaluating the quality of an AI interview coach's answer. The coach helps a candidate
+    assess their resume against a job description, using only the retrieved context provided.
+    Score the answer on three dimensions, each from 1-5.
+    </instructions>
+
+    <scoring_criteria>
+    RELEVANCY (1-5): Does the answer directly address what was asked, without drifting into unrelated information?
+    GROUNDEDNESS (1-5): Are all claims in the answer actually supported by the retrieved context?
+      A 1 means the answer invents or overstates something not present in the context.
+      A 5 means every claim traces directly back to the context.
+    COMPLETENESS (1-5): Does the answer engage with the specifics (numbers, facts, reasoning)
+      rather than being generic or vague?
+    </scoring_criteria>
+
+    <context>
+    {retrieved_chunks}
+    </context>
+
+    <question>
+    {question}
+    </question>
+
+    <answer_to_evaluate>
+    {answer}
+    </answer_to_evaluate>
+
+    Respond ONLY with valid JSON in this exact format, no markdown fences, no explanation outside the JSON:
+    {{"relevancy": <int 1-5>, "groundedness": <int 1-5>, "completeness": <int 1-5>, "groundedness_reasoning": "<one sentence justifying the groundedness score specifically>"}}
+    """
+    response = client.interactions.create(
+        model="gemini-3.6-flash",
+        input=prompt
+    )
+    raw = response.output_text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1]
+        raw = raw.rsplit("```", 1)[0]
     return json.loads(raw)

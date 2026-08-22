@@ -1,5 +1,7 @@
 
-from services.embed import classification_of_question
+# from services.embed import classification_of_question
+from services.ollama import classification_of_question
+from services.rate_limit import rate_limited_async
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
@@ -8,16 +10,17 @@ import pypdf
 from io import BytesIO
 import re
 from fastapi import UploadFile, File
-from services.embed import generate_text, llm_chunk
-
+# from services.embed import generate_text, llm_chunk
+from services.ollama import generate_text, llm_chunk
 
 
 from services.chunking import semantic_chunk_document
 from services.chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db, fetch_query_results, filter_results_by_distance
 
+from langfuse.decorators import observe
 
 
-
+@observe()
 async def load_pdf_and_add_to_chroma(pdf_bytes: bytes, fileType: str ):
     reader = pypdf.PdfReader(BytesIO(pdf_bytes))
 
@@ -95,9 +98,13 @@ def questions() -> list[str]:
     return interviewQuestions
 
 
+@observe()
 async def llm_response(query:str) -> object:
+    print(f"[llm_response] Processing: '{query[:60]}...'")
     raw_classification = await classification_of_question(query)
     raw_classification = raw_classification.strip().lower()
+
+    print(raw_classification)
 
     # Parse LLM output — it may return verbose text; extract the known keyword
     if "both" in raw_classification:
@@ -113,12 +120,14 @@ async def llm_response(query:str) -> object:
     print(f"[DEBUG] results count: {len(results)}")
 
     generated_text = {"answer":None, "citations":[],"query_classifiction":raw_classification}
-    generated_text["answer"] = await generate_text("\n".join([r["document"] for r in results]), query)
-    for r in results[:2]:
+    generated_text["answer"] = await generate_text("\n".join([f'[SOURCE: {r["metadata"]["source_file"]}]' + " <-> " + r["document"] for r in results]), query)
+    for r in results[:5]:
         generated_text["citations"].append({
             "source_file": r["metadata"]["source_file"],
-            "chunk": r["document"]
+            "chunk":f'[SOURCE: {r["metadata"]["source_file"]}]' + " <-> " +  r["document"],
+            "id" : r['id']
         })
+
     return generated_text
 
 

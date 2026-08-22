@@ -1,5 +1,5 @@
 import chromadb
-
+import hashlib
 try:
     from services.embed import embed_text
 except ModuleNotFoundError:
@@ -22,7 +22,8 @@ client = chromadb.CloudClient(
 collection = client.get_or_create_collection(name="job_fit_copilot")
 
 async def add_to_chroma_db(resume_text: dict, source_file: str):
-    display_document = " ".join(resume_text["bullets"]).strip()
+    display_document = " " + (resume_text["subheading"] or "") + " " + (resume_text["heading"] or "") + " ".join(resume_text["bullets"]).strip()
+    
     text_to_embed = " " + (resume_text["subheading"] or "") + " " + (resume_text["heading"] or "") + " ".join(resume_text["bullets"]).strip()
     text_to_embed = text_to_embed.strip()
     if not text_to_embed:
@@ -30,8 +31,15 @@ async def add_to_chroma_db(resume_text: dict, source_file: str):
     if not text_to_embed:
         return
     text_embedding = embed_text(text_to_embed)
+
+    bullets_content = " ".join(resume_text["bullets"]).strip()
+    hash_source = bullets_content if bullets_content else (resume_text["heading"] or "") + (resume_text["subheading"] or "")
+    chunk_hash = hashlib.sha256(hash_source.encode("utf-8")).hexdigest()[:16]
+    chunk_id = f"{source_file}:{chunk_hash}"
+
+
     collection.upsert(
-        ids=[f"{source_file}:{resume_text['heading']}:{resume_text['subheading']}"],
+        ids=[chunk_id],
         documents=[display_document],
         embeddings=[text_embedding],
         metadatas=[{
@@ -78,8 +86,10 @@ def filter_results_by_distance(results: dict, max_distance: float = 1.0) -> list
     ]
 
 
-def get_from_chroma_db():
-    results = collection.get()
+async def get_from_chroma_db():
+    #i need to fetch theID column
+    results = collection.get(  
+    )
     return results
 def get_count_from_chroma_db():
     count = collection.count()

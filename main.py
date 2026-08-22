@@ -1,3 +1,5 @@
+from services.evals import eval_metrics
+from services.chroma import get_from_chroma_db
 from services.load import llm_response
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +36,16 @@ async def upload_resume(input_pdf: UploadFile = File(...), fileType : str = 'res
 async def fetch_answers(query :str):
     res = await llm_response(query)
     return {"status":200, "response": res}
+@app.get("/fetch")
+async def fetch():
+    res = await get_from_chroma_db()
+    return {"status":200, "response": res}
+
+@app.get("/evals")
+async def evals():
+    res = await eval_metrics()
+    print(res)
+    return {"status":200,"response":res}
 
 
 if __name__ == "__main__":
