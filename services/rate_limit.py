@@ -1,54 +1,40 @@
-"""
-Async-safe rate-limiting utilities for LLM calls.
-
-Usage:
-    from services.rate_limit import rate_limited_async
-
-    @rate_limited_async(max_retries=5, base_delay=2.0, request_delay=0.8)
-    async def my_llm_call(...):
-        ...
-"""
-
 import asyncio
 import functools
-import random
-import time
-
-
-def rate_limited_async(
-    max_retries: int = 8,
-    base_delay: float = 2.0,
-    request_delay: float = 0.8,
-    max_backoff: float = 90.0,
-):
-    """
-    Async decorator that adds:
-    - A fixed inter-request delay after every successful call  (request_delay).
-    - Exponential back-off with jitter on failure, capped at  max_backoff seconds.
-
-    Uses asyncio.sleep so the FastAPI event loop is never blocked.
-
-    Default max_retries=8 and max_backoff=90s are sized to survive Gemini
-    free-tier 429s that can carry retry-after headers of 50 s or more.
-    """
+import re
+from google.genai._gaos.lib.compat_errors import RateLimitError
+#agent helped here for the code part
+def with_retry(max_retries=3, base_delay=5, call_timeout=30):
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(*args, **kwargs):
-            for attempt in range(max_retries):
+            attempt = 0
+            while True:
                 try:
-                    result = await func(*args, **kwargs)
-                    if request_delay > 0:
-                        await asyncio.sleep(request_delay)   # proactive throttle
-                    return result
-                except Exception as e:
-                    if attempt == max_retries - 1:
+                    return await asyncio.wait_for(func(*args, **kwargs), timeout=call_timeout)
+
+                except RateLimitError as e:
+                    attempt += 1
+                    if attempt > max_retries:
                         raise
-                    raw_backoff = (base_delay * (2 ** attempt)) + random.uniform(0.1, 0.5)
-                    backoff = min(raw_backoff, max_backoff)  # cap so we never exceed max_backoff
-                    print(
-                        f"[rate_limit] {func.__name__} failed: {e}. "
-                        f"Retrying in {backoff:.2f}s (attempt {attempt + 1}/{max_retries})..."
-                    )
-                    await asyncio.sleep(backoff)
+
+                    # Try to honor the server's actual requested wait time
+                    match = re.search(r"retry in ([\d.]+)s", str(e))
+                    if match:
+                        delay = float(match.group(1)) + 1  # small buffer
+                    else:
+                        delay = base_delay * (2 ** (attempt - 1))  # fallback: 5, 10, 20...
+
+                    print(f"[retry] {func.__name__} rate-limited, attempt {attempt}/{max_retries}, waiting {delay:.1f}s")
+                    await asyncio.sleep(delay)
+
+                except asyncio.TimeoutError:
+                    attempt += 1
+                    if attempt > max_retries:
+                        raise
+                    delay = base_delay * (2 ** (attempt - 1))
+                    print(f"[retry] {func.__name__} timed out, attempt {attempt}/{max_retries}, waiting {delay:.1f}s")
+                    await asyncio.sleep(delay)
+
+                # anything else (bad prompt, auth error, malformed request, etc.) — don't retry, raise immediately
         return wrapper
     return decorator

@@ -1,7 +1,6 @@
 
 # from services.embed import classification_of_question
 from services.ollama import classification_of_question
-from services.rate_limit import rate_limited_async
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
@@ -11,12 +10,13 @@ from io import BytesIO
 import re
 from fastapi import UploadFile, File
 # from services.embed import generate_text, llm_chunk
-from services.ollama import generate_text, llm_chunk
+from services.ollama import generate_text
+from services.embed import llm_chunk
 
 
 from services.chunking import semantic_chunk_document
 from services.chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db, fetch_query_results, filter_results_by_distance
-
+from fastapi.responses import StreamingResponse
 from langfuse.decorators import observe
 
 
@@ -41,7 +41,7 @@ async def load_pdf_and_add_to_chroma(pdf_bytes: bytes, fileType: str ):
 
     chunks = await llm_chunk(text)
 
-    print(chunks)
+    print(chunks, flush=True)
 
     for i, chunk in enumerate(chunks):
         await add_to_chroma_db(chunk, fileType)
@@ -77,8 +77,8 @@ def query():
     results = fetch_query_results(query, n_results=2)
     return results
 
-def retrieve(query:str, n_results:int = 5, max_distance:float = 0.5, filterBy:str="resume"):
-    results = fetch_query_results(query, n_results=n_results, max_distance=max_distance, filterBy=filterBy)
+async def retrieve(query:str, n_results:int = 5, max_distance:float = 0.5, filterBy:str="resume"):
+    results = await fetch_query_results(query, n_results=n_results, max_distance=max_distance, filterBy=filterBy)
     return results
 
 
@@ -99,26 +99,7 @@ def questions() -> list[str]:
 
 
 @observe()
-async def llm_response(query:str) -> object:
-    print(f"[llm_response] Processing: '{query[:60]}...'")
-    raw_classification = await classification_of_question(query)
-    raw_classification = raw_classification.strip().lower()
-
-    print(raw_classification)
-
-    # Parse LLM output — it may return verbose text; extract the known keyword
-    if "both" in raw_classification:
-        filterBy = "both"
-    elif "jd" in raw_classification or "job description" in raw_classification:
-        filterBy = "jd"
-    else:
-        filterBy = "resume"  # default fallback
-
-    print(f"[DEBUG] query='{query}' | raw_classification='{raw_classification}' | filterBy='{filterBy}'")
-
-    results = retrieve(query, n_results=5, max_distance=1, filterBy=filterBy)
-    print(f"[DEBUG] results count: {len(results)}")
-
+async def llm_response(query:str, results: list[dict], raw_classification:str) -> object:
     generated_text = {"answer":None, "citations":[],"query_classifiction":raw_classification}
     generated_text["answer"] = await generate_text("\n".join([f'[SOURCE: {r["metadata"]["source_file"]}]' + " <-> " + r["document"] for r in results]), query)
     for r in results[:5]:

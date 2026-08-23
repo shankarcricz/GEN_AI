@@ -4,10 +4,9 @@ import re
 
 
 
-try:
-    from services.chroma import add_to_chroma_db
-except ModuleNotFoundError:
-    from chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db, fetch_query_results
+
+from services.chroma import add_to_chroma_db
+
 
 
 def chunk_document(text:str, chunk_size:int = 400, chunk_overlap:int = 20) -> list[str]:

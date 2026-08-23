@@ -6,6 +6,11 @@ except ModuleNotFoundError:
     from embed import embed_text
 import os
 from dotenv import load_dotenv
+from sqlalchemy import Text
+from postgress.index import engine
+from sqlalchemy import text
+
+
 load_dotenv()
 
 
@@ -37,34 +42,86 @@ async def add_to_chroma_db(resume_text: dict, source_file: str):
     chunk_hash = hashlib.sha256(hash_source.encode("utf-8")).hexdigest()[:16]
     chunk_id = f"{source_file}:{chunk_hash}"
 
+    embedding_str = "[" + ",".join(str(x) for x in text_embedding) + "]"
 
-    collection.upsert(
-        ids=[chunk_id],
-        documents=[display_document],
-        embeddings=[text_embedding],
-        metadatas=[{
-            "heading": resume_text["heading"] or "",
-            "subheading": resume_text["subheading"] or "",
-            "source_file": source_file,
-        }],
-    )
+    #migration to postgress/pg vector - supabase
 
-def fetch_query_results(query: str, n_results: int = 5, max_distance: float = 1.0, filterBy : str = "resume") -> list[dict]:
+    async with engine.connect() as conn:
+        await conn.execute(
+            text("""
+                INSERT INTO doc_chunks (id, document, embedding, heading, subheading, source_file)
+                VALUES (:id, :document, CAST(:embedding AS vector), :heading, :subheading, :source_file)
+            """),
+            {   
+                "id":chunk_id,
+                "document": display_document,
+                "embedding": embedding_str,
+                "heading": resume_text["heading"],
+                "subheading": resume_text["subheading"],
+                "source_file": source_file,
+            }
+        )
+        await conn.commit()    
+        return True
+
+    
+
+    # collection.upsert(
+    #     ids=[chunk_id],
+    #     documents=[display_document],
+    #     embeddings=[text_embedding],
+    #     metadatas=[{
+    #         "heading": resume_text["heading"] or "",
+    #         "subheading": resume_text["subheading"] or "",
+    #         "source_file": source_file,
+    #     }],
+    # )
+
+async def fetch_query_results(query: str, n_results: int = 5, max_distance: float = 1.0, filterBy: str = "resume") -> list[dict]:
     query_embedding = embed_text(query)
+    embedding_str = "[" + ",".join(str(x) for x in query_embedding) + "]" ##done like this because pgvector thrwos error
+
     filterBy = filterBy.strip().lower()
     if filterBy == "both":
-        where_clause = {"source_file": {"$in": ["resume", "jd"]}}
+        where_sql = "source_file IN ('resume', 'jd')"
     else:
-        where_clause = {"source_file": filterBy}
-    results = collection.query(
-        query_embeddings=[query_embedding],
-        n_results=n_results,
-        # include=["metadatas", "documents", "distances", "embeddings"],
-        where=where_clause
-    )
+        where_sql = "source_file = :source_file"
 
-    return filter_results_by_distance(results, max_distance=max_distance)
+    sql = f"""
+        SELECT id, document, heading, subheading, source_file,
+               embedding <=> CAST(:embedding AS vector) AS distance
+        FROM doc_chunks
+        WHERE {where_sql}
+        ORDER BY embedding <=> CAST(:embedding AS vector) 
+        LIMIT :n_results
+    """
+    #passing our params
+    params = {
+        "embedding": embedding_str,
+        "n_results": n_results,
+    }
+    if filterBy != "both":
+        params["source_file"] = filterBy
 
+    async with engine.connect() as conn:
+        result = await conn.execute(text(sql), params)
+        rows = result.fetchall()
+
+    results = [
+        {
+            "id": row.id,
+            "document": row.document,
+            "distance": row.distance,
+            "metadata": {
+                "heading": row.heading,
+                "subheading": row.subheading,
+                "source_file": row.source_file,
+            },
+        }
+        for row in rows
+    ]
+
+    return [r for r in results if r["distance"] < max_distance]
 
 def filter_results_by_distance(results: dict, max_distance: float = 1.0) -> list[dict]:
     ids = results["ids"][0]

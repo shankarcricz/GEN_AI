@@ -1,3 +1,4 @@
+from services.rate_limit import with_retry
 import json
 import os
 import re
@@ -31,9 +32,12 @@ def embed_text(text: str) -> list[float]:
         model="gemini-embedding-2",
         contents=text
     )
+    print("gemini embedding length:", len(result.embeddings[0].values))
     return result.embeddings[0].values
 
+
 @observe()
+@with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def generate_text(retrieved_chunks: str, query: str) -> str:
     system_prompt = (
         "You are an AI interview coach. Your job is to help candidates prepare for interviews by answering "
@@ -93,6 +97,7 @@ async def generate_text(retrieved_chunks: str, query: str) -> str:
     return response["message"]["content"].strip()
 
 @observe()
+@with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def classification_of_question(query: str) -> str:
     system_prompt = (
         "You are a document routing classifier. Given an interview question, decide which document(s) are needed to answer it.\n\n"
@@ -136,6 +141,7 @@ async def classification_of_question(query: str) -> str:
 
 
 @observe()
+@with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def llm_chunk(text: str) -> list[dict]:
     system_prompt = (
         "You are a document structuring specialist. Convert raw text into a structured JSON array of sections.\n\n"
@@ -202,14 +208,12 @@ async def llm_chunk(text: str) -> list[dict]:
         return [{"heading": "General", "subheading": None, "bullets": [text]}]
 
 @observe()
+@with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def llm_judge(question: str, retrieved_chunks: str, answer: str):
 
     print(retrieved_chunks)
-    print("000000000000000")
     print(answer)
-    print("0000000000000000000")
     print(question)
-    print("000000000000")
     system_prompt = (
         "You are evaluating the quality of an AI interview coach's answer. "
         "Score the answer on three dimensions, each from 1-5, and respond ONLY with valid JSON, "
@@ -255,9 +259,16 @@ Respond in this exact JSON format: {{"relevancy": <int 1-5>, "groundedness": <in
             "input": response["prompt_eval_count"],
             "output": response["eval_count"],
         }
-    )
+)
+    try:
+        parsed_json = json.loads(response["message"]["content"])
+        return parsed_json
+    except Exception as e:
+        print(e)
+        return {
+            "status" : "exception",
+            "response" : "Exception has occured",
+            "groundedness": 0
+        }
 
-    print(answer, "ans---------------------")
-    print( response,"judge_response---------------------")
-    return response["message"]["content"].strip()
     

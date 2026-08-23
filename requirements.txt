@@ -21,3 +21,11 @@ python-dotenv
 
 # file upload
 python-multipart
+
+#langfuse
+langfuse
+
+sqlalchemy 
+psycopg2
+
+asyncpg

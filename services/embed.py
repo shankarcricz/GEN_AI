@@ -1,5 +1,5 @@
 
-from services.rate_limit import rate_limited_async
+from services.rate_limit import with_retry
 import json
 from dotenv import load_dotenv
 from google import genai
@@ -17,10 +17,11 @@ def embed_text(text: str) -> list[float]:
         model="gemini-embedding-2",
         contents=text
     )
+    print("gemini embedding length:", len(result.embeddings[0].values))
     return result.embeddings[0].values
 
 
-@rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
+@with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def generate_text(retrieved_chunks:str, query:str) -> str:
     prompt = f"""
     <instructions>
@@ -60,7 +61,7 @@ async def generate_text(retrieved_chunks:str, query:str) -> str:
     return response.output_text
 
 
-@rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
+@with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def classification_of_question(query:str):
     prompt = f"""You are a document routing classifier. Given an interview question, decide which document(s) are needed to answer it.
 
@@ -88,7 +89,7 @@ async def classification_of_question(query:str):
     return response.output_text
     
 
-@rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
+@with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def llm_chunk(text:str):
 
 
@@ -132,7 +133,7 @@ async def llm_chunk(text:str):
         raw = raw.rsplit("```", 1)[0]  # drop closing fence
     return json.loads(raw)
 
-@rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
+@with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def llm_judge(question: str, retrieved_chunks: str, answer: str) -> dict:
     prompt = f"""
     <instructions>
