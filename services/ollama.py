@@ -216,7 +216,7 @@ async def llm_judge(question: str, retrieved_chunks: str, answer: str):
     print(question)
     system_prompt = (
         "You are evaluating the quality of an AI interview coach's answer. "
-        "Score the answer on three dimensions, each from 1-5, and respond ONLY with valid JSON, "
+        "Score the answer on three dimensions and one flag (true or false), each from 1-5, and respond ONLY with valid JSON, "
         "no markdown fences, no explanation outside the JSON."
     )
 
@@ -229,6 +229,12 @@ If so, that is a fabrication regardless of whether the JD's wording appears in t
 A 1 means the answer claims candidate experience that is only JD language, not resume-sourced.
 A 5 means every claim about the candidate is traceable specifically to resume-sourced content.
 COMPLETENESS (1-5): Does the answer engage with the specifics (numbers, facts, reasoning) rather than being generic or vague?
+COULD_WEB_SEARCH_HELP (true/false): Is this a question about real-world, external, or current
+  information (e.g. company news, layoffs, culture, recent events) that the candidate's resume/JD
+  would never be expected to contain — where a live web search could provide a genuinely useful
+  answer the resume/JD context cannot? Answer true only if the underlying question is legitimately
+  answerable via public information, not for personal/private questions (e.g. salary expectations,
+  marital status) that no web search could ever resolve.
 </scoring_criteria>
 
 <context>
@@ -243,7 +249,7 @@ COMPLETENESS (1-5): Does the answer engage with the specifics (numbers, facts, r
 {answer}
 </answer_to_evaluate>
 
-Respond in this exact JSON format: {{"relevancy": <int 1-5>, "groundedness": <int 1-5>, "completeness": <int 1-5>, "groundedness_reasoning": "<one sentence>"}}"""
+Respond in this exact JSON format: {{"relevancy": <int 1-5>, "groundedness": <int 1-5>, "completeness": <int 1-5>, "could_web_search_help": <bool>, "groundedness_reasoning": "<one sentence>"}}"""
 
     response = await ollama_client.chat(
         model=MODEL_NAME,

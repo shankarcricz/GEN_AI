@@ -1,9 +1,14 @@
 
+
+from aiohttp import web_app
+from langgraph.constants import END
+from aiohttp import client_exceptions
+from services.traviliy import web_search_tool,web_search
 from services.rate_limit import with_retry
 import json
+import os
 from dotenv import load_dotenv
 from google import genai
-import os
 load_dotenv()
 
 
@@ -56,9 +61,134 @@ async def generate_text(retrieved_chunks:str, query:str) -> str:
     """
     response = client.interactions.create(
         model="gemini-3.5-flash",
-        input=prompt
+        input=prompt,
+
     )
     return response.output_text
+
+
+
+
+
+
+#tools for langraph
+async def call_model(state):
+    if state["function_results"]:
+        model_input = state["function_results"]
+    else:
+        model_input = state["input"]
+
+    response = client.interactions.create(
+        model="gemini-3.5-flash",
+        tools=[web_search_tool],
+        input=model_input,
+        previous_interaction_id=state["previous_id"],
+    )
+
+    return {
+        "previous_id": response.id,
+        "function_results": [step for step in response.steps if step.type == "function_call"],
+        "output": response.output_text,
+        "iter_count": state["iter_count"] + 1,
+    }
+
+
+def should_continue(state):
+    if state["function_results"] and state["iter_count"] < state["max_limit"]:
+        return "tool_call"
+    else:
+        return END
+
+
+    
+
+async def tool_call(state):
+    if not state['function_results']:
+        return {
+            "function_results": []
+        }
+    
+    new_function_results = []
+    for step in state['function_results']:
+        if step.type == "function_call":
+           answer = await web_search(step.arguments['query'])
+        #    print(answer)
+           new_function_results.append({
+                "type": "function_result",
+                "name": step.name,
+                "call_id": step.id,
+                "result": [{"type": "text", "text": answer}],
+           })
+    return {
+        "function_results": new_function_results
+    }
+
+
+
+
+
+#without langgraph tool calling using loop and limit :(
+async def generate_content():
+    # Lazy import to avoid circular imports (graph.lang imports from services.embed)
+    # pyrefly: ignore [missing-import]
+
+    query = "Are there layoffs in comcast recently?"
+    from graph.lang import app
+    result = await app.ainvoke({
+        "input": query,
+        "previous_id": None,
+        "function_results": [],
+        "output": "",
+        "max_limit": 5,
+        "iter_count": 0,
+    })
+
+    print(result)
+    # i=0
+    # j=5
+    # prev_id=None
+
+    # while i<j:
+    #     i=i+1
+    #     response = client.interactions.create(
+    #         model="gemini-3.5-flash",
+    #         tools=[web_search_tool],
+    #         input= input,
+    #         previous_interaction_id=prev_id
+    #     )
+    #     function_results = []
+    #     for step in response.steps:
+    #         if step.type == "function_call":
+    #            answer = await web_search(step.arguments['query'])
+    #            print(answer)
+    #            function_results.append({
+    #                 "type": "function_result",
+    #                 "name": step.name,
+    #                 "call_id": step.id,
+    #                 "result": [{"type": "text", "text": answer}],
+    #            })
+    #     if not function_results:
+    #         break
+    #     prev_id = response.id
+    #     input = function_results
+
+    # final_response = client.interactions.create(
+    #     model="gemini-3.5-flash",
+    #     input= input,
+    #     previous_interaction_id=prev_id
+    # )
+    # print(final_response)
+        
+
+
+        
+
+
+
+
+
+
+
 
 
 @with_retry(max_retries=3, base_delay=5, call_timeout=30)
@@ -175,3 +305,6 @@ async def llm_judge(question: str, retrieved_chunks: str, answer: str) -> dict:
         raw = raw.split("\n", 1)[-1]
         raw = raw.rsplit("```", 1)[0]
     return json.loads(raw)
+
+
+

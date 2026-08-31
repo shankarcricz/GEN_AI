@@ -1,3 +1,4 @@
+import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from services.loadtest import run_load_test
 from services.evals import test_case_data
 from services.ollama import classification_of_question
@@ -10,6 +11,7 @@ from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from services.load import load_pdf_and_add_to_chroma
 from fastapi.responses import StreamingResponse
+from services.embed import generate_content
 import json
 
 app = FastAPI()
@@ -67,8 +69,32 @@ async def fetch_answers(query :str):
 
     judge_response = await llm_judge(query, "\n".join([c["chunk"] for c in response["citations"]]), response["answer"])
 
-    if judge_response["groundedness"] < 3:
-        response["answer"] = "Groundedness is less than 3"
+    print(judge_response,"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
+    if judge_response["groundedness"] < 3 or judge_response["could_web_search_help"]:
+        # response["answer"] = "Groundedness is less than 3"
+        retrieved_chunks = "\n".join([c["chunk"] for c in response["citations"]])
+        prompt = f"""The candidate asked: {query} 
+        Here are the retrieved chunks : {retrieved_chunks}.
+        We were not able to find a grounded answer from these chunks and it was not complete.
+        Answer the query using the tool call and make sure to give an appropriate answer
+        """
+
+        from graph.lang import app
+
+        yield f"data: {json.dumps({'type':'citations', 'results': 'Searching across the internet....'})}\n\n"
+
+        result = await app.ainvoke({
+        "input": prompt,
+        "previous_id": None,
+        "function_results": [],
+        "output": "",
+        "max_limit": 5,
+        "iter_count": 0,
+        })
+        response["answer"] = result["output"]
+        response['citations'] = []
+
         
     
     yield f"data: {json.dumps({'type':'answer', 'results': response})}\n\n"
@@ -89,7 +115,8 @@ async def fetch():
 
 @app.get('/help')
 async def helper():
-    return await run_load_test()
+    # return await run_load_test()
+    await generate_content()
 
     # obj = {}
     # test_cases = test_case_data["test_cases"]
