@@ -19,7 +19,7 @@ client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
 # @rate_limited_async(max_retries=8, base_delay=2.0, request_delay=1.0)
 def embed_text(text: str) -> list[float]:
     result = client.models.embed_content(
-        model="gemini-embedding-2",
+        model="gemini-embedding-2-preview",
         contents=text
     )
     print("gemini embedding length:", len(result.embeddings[0].values))
@@ -182,8 +182,44 @@ async def generate_content():
 
 
         
+async def could_web_search_help(question: str) -> bool:
+    prompt = f"""
+<instructions>
+Given a question a candidate might ask an AI interview coach, decide whether a live web search
+could plausibly provide genuinely useful information that a resume or job description would
+never be expected to contain.
+</instructions>
 
+<criteria>
+Answer true if the question is about real-world, external, current, or public information
+(company news, layoffs, stock price, culture, recent events) — something inherently outside
+what any resume/JD could contain.
 
+Answer false if the question is about the candidate personally (skills, experience) or is
+inherently private/unanswerable even via web search (salary expectations, marital status).
+</criteria>
+
+<example_true>
+Q: "Are there layoffs at Comcast recently?" → true
+Q: "What is Comcast's current stock price?" → true
+</example_true>
+
+<example_false>
+Q: "What is my current role and company?" → false
+Q: "What is my expected salary?" → false
+</example_false>
+
+<question>
+{question}
+</question>
+
+Respond ONLY with valid JSON: {{"could_web_search_help": <true or false>}}
+"""
+    response = client.interactions.create(model="gemini-3.5-flash", input=prompt)
+    raw = response.output_text.strip()
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1].rsplit("```", 1)[0]
+    return json.loads(raw)["could_web_search_help"]
 
 
 
@@ -266,36 +302,68 @@ async def llm_chunk(text:str):
 @with_retry(max_retries=3, base_delay=5, call_timeout=30)
 async def llm_judge(question: str, retrieved_chunks: str, answer: str) -> dict:
     prompt = f"""
-    <instructions>
-    You are evaluating the quality of an AI interview coach's answer. The coach helps a candidate
-    assess their resume against a job description, using only the retrieved context provided.
-    Score the answer on three dimensions, each from 1-5.
-    </instructions>
+<instructions>
+You are evaluating the quality of an AI interview coach's answer. The coach helps a candidate
+assess their resume against a job description, using only the retrieved context provided.
+Score the answer on three dimensions, each from 1-5, plus one additional flag.
+</instructions>
 
-    <scoring_criteria>
-    RELEVANCY (1-5): Does the answer directly address what was asked, without drifting into unrelated information?
-    GROUNDEDNESS (1-5): Are all claims in the answer actually supported by the retrieved context?
-      A 1 means the answer invents or overstates something not present in the context.
-      A 5 means every claim traces directly back to the context.
-    COMPLETENESS (1-5): Does the answer engage with the specifics (numbers, facts, reasoning)
-      rather than being generic or vague?
-    </scoring_criteria>
+<scoring_criteria>
+RELEVANCY (1-5): Does the answer directly address what was asked, without drifting into unrelated information?
+GROUNDEDNESS (1-5): Are all claims in the answer actually supported by the retrieved context?
+  A 1 means the answer invents or overstates something not present in the context.
+  A 5 means every claim traces directly back to the context.
+COMPLETENESS (1-5): Does the answer engage with the specifics (numbers, facts, reasoning)
+  rather than being generic or vague?
+</scoring_criteria>
 
-    <context>
-    {retrieved_chunks}
-    </context>
+<could_web_search_help_definition>
+This is a SEPARATE judgment from the three scores above — do not base it on groundedness or blending.
 
-    <question>
-    {question}
-    </question>
+Ask yourself: is the QUESTION itself asking about real-world, external, current, or public information
+(company news, layoffs, culture, financial performance, recent events) — something a resume/JD would
+never be expected to contain in the first place, regardless of how well the answer was grounded?
 
-    <answer_to_evaluate>
-    {answer}
-    </answer_to_evaluate>
+Answer true if a live web search could plausibly provide genuinely new, useful information beyond
+what any resume/JD could ever contain.
+Answer false if the question is about the candidate personally (skills, experience) or is inherently
+private/unanswerable even via web search (salary expectations, marital status).
 
-    Respond ONLY with valid JSON in this exact format, no markdown fences, no explanation outside the JSON:
-    {{"relevancy": <int 1-5>, "groundedness": <int 1-5>, "completeness": <int 1-5>, "groundedness_reasoning": "<one sentence justifying the groundedness score specifically>"}}
-    """
+<example_true>
+Q: "Are there layoffs at Comcast recently?"
+→ could_web_search_help: true
+Reasoning: this asks about current company events. No resume or JD would ever contain this — it's
+external, public, and time-sensitive information a web search could actually answer.
+</example_true>
+
+<example_false>
+Q: "What is my current role and company?"
+→ could_web_search_help: false
+Reasoning: this is about the candidate's own resume content, already fully answerable from context.
+</example_false>
+
+<example_false_2>
+Q: "What is my expected salary?"
+→ could_web_search_help: false
+Reasoning: personal/private information — no web search, however thorough, could answer this.
+</example_false_2>
+</could_web_search_help_definition>
+
+<context>
+{retrieved_chunks}
+</context>
+
+<question>
+{question}
+</question>
+
+<answer_to_evaluate>
+{answer}
+</answer_to_evaluate>
+
+Respond ONLY with valid JSON in this exact format, no markdown fences, no explanation outside the JSON:
+{{"relevancy": <int 1-5>, "groundedness": <int 1-5>, "completeness": <int 1-5>, "could_web_search_help": <true or false>, "groundedness_reasoning": "<one sentence justifying the groundedness score specifically>"}}
+"""
     response = client.interactions.create(
         model="gemini-3.6-flash",
         input=prompt

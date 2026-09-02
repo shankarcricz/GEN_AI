@@ -29,7 +29,7 @@ MODEL_NAME = "mistral:latest"
 
 def embed_text(text: str) -> list[float]:
     result = client.models.embed_content(
-        model="gemini-embedding-2",
+        model="gemini-embedding-2-preview",
         contents=text
     )
     print("gemini embedding length:", len(result.embeddings[0].values))
@@ -206,6 +206,50 @@ async def llm_chunk(text: str) -> list[dict]:
         return data
     except json.JSONDecodeError:
         return [{"heading": "General", "subheading": None, "bullets": [text]}]
+
+
+async def could_web_search_help(query:str):
+    system_prompt = (
+        """You are evaluating whether a live web search could provide genuinely useful 
+        information that a resume or job description would never be expected to contain.""
+        Answer true if the question is about real-world, external, current, or public information"
+        (company news, layoffs, stock price, culture, recent events) — something inherently outside"
+        what any resume/JD could contain."
+        "Answer false if the question is about the candidate personally (skills, experience) or is"
+        inherently private/unanswerable even via web search (salary expectations, marital status).
+        The output should be a JSON object with the following format: {"answer": "true" or "false"}
+        """
+    )
+
+    user_prompt = f"Question: {query}\nAnswer:"
+
+    response = await ollama_client.chat(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        format="json",  
+        options={"temperature": 0.2}
+    )
+
+    langfuse_context.update_current_observation(
+        usage={
+            "input": response["prompt_eval_count"],
+            "output": response["eval_count"],
+        }
+    )
+
+    raw = response["message"]["content"].lower().strip()
+    if raw.startswith("```"):
+        raw = re.sub(r"^```(?:json)?\n?", "", raw)
+        raw = re.sub(r"\n?```$", "", raw)
+    
+    data = json.loads(raw)
+    print(data,"(((((((((((((((())))))))))))))))")
+    return data["answer"]
+
+
 
 @observe()
 @with_retry(max_retries=3, base_delay=5, call_timeout=30)

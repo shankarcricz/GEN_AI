@@ -9,9 +9,9 @@ import pypdf
 from io import BytesIO
 import re
 from fastapi import UploadFile, File
-# from services.embed import generate_text, llm_chunk
-from services.ollama import generate_text
-from services.embed import llm_chunk
+from services.embed import generate_text, llm_chunk
+# from services.ollama import generate_text
+# from services.embed import llm_chunk
 
 
 from services.chunking import semantic_chunk_document

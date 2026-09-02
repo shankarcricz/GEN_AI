@@ -1,9 +1,10 @@
+from services.ollama import could_web_search_help
 import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from services.loadtest import run_load_test
 from services.evals import test_case_data
 from services.ollama import classification_of_question
 from services.load import retrieve
-from services.ollama import llm_judge
+from services.embed import llm_judge
 from services.evals import eval_metrics
 from services.chroma import get_from_chroma_db
 from services.load import llm_response
@@ -56,33 +57,36 @@ async def fetch_answers(query :str):
         filterBy = "resume"  # default fallback
 
     print(f"[DEBUG] query='{query}' | raw_classification='{raw_classification}' | filterBy='{filterBy}'")
-    results = await retrieve(query, n_results=5, max_distance=0.8, filterBy=filterBy)  
+    results = await retrieve(query, n_results=5, max_distance=0.42, filterBy=filterBy)  
     print(results)
     # return
 
+    listt = [r['distance'] for r in results]
+    print(listt,"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
+    should_search = False
+     
     if len(results) == 0:
+        should_search = await could_web_search_help(query)
+        print(should_search,"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
+
+
+    if len(results) == 0 and should_search=='false':
         yield f"data: {json.dumps({'type':'no_context', 'results': 'No context found' })}\n\n"
         return
     
     yield f"data: {json.dumps({'type': 'citations', 'results': results})}\n\n"
-    response = await llm_response(query, results, raw_classification)
 
-    judge_response = await llm_judge(query, "\n".join([c["chunk"] for c in response["citations"]]), response["answer"])
-
-    print(judge_response,"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
-    if judge_response["groundedness"] < 3 or judge_response["could_web_search_help"]:
-        # response["answer"] = "Groundedness is less than 3"
-        retrieved_chunks = "\n".join([c["chunk"] for c in response["citations"]])
+    if should_search:
         prompt = f"""The candidate asked: {query} 
-        Here are the retrieved chunks : {retrieved_chunks}.
         We were not able to find a grounded answer from these chunks and it was not complete.
         Answer the query using the tool call and make sure to give an appropriate answer
         """
 
         from graph.lang import app
 
-        yield f"data: {json.dumps({'type':'citations', 'results': 'Searching across the internet....'})}\n\n"
+        yield f"data: {json.dumps({'type':'webSearch', 'results': 'Searching across the internet....'})}\n\n"
 
         result = await app.ainvoke({
         "input": prompt,
@@ -92,12 +96,45 @@ async def fetch_answers(query :str):
         "max_limit": 5,
         "iter_count": 0,
         })
+        response = {}
         response["answer"] = result["output"]
         response['citations'] = []
+        yield f"data: {json.dumps({'type':'answer', 'results': response})}\n\n"
+
+    else:
+        response = await llm_response(query, results, raw_classification)
+
+        judge_response = await llm_judge(query, "\n".join([c["chunk"] for c in response["citations"]]), response["answer"])
+
+        print(judge_response,"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+
+        if judge_response["groundedness"] < 3 or judge_response["could_web_search_help"]:
+            # response["answer"] = "Groundedness is less than 3"
+            retrieved_chunks = "\n".join([c["chunk"] for c in response["citations"]])
+            prompt = f"""The candidate asked: {query} 
+            Here are the retrieved chunks : {retrieved_chunks}.
+            We were not able to find a grounded answer from these chunks and it was not complete.
+            Answer the query using the tool call and make sure to give an appropriate answer
+            """
+
+            from graph.lang import app
+
+            yield f"data: {json.dumps({'type':'webSearch', 'results': 'Searching across the internet....'})}\n\n"
+
+            result = await app.ainvoke({
+            "input": prompt,
+            "previous_id": None,
+            "function_results": [],
+            "output": "",
+            "max_limit": 5,
+            "iter_count": 0,
+            })
+            response["answer"] = result["output"]
+            response['citations'] = []
 
         
     
-    yield f"data: {json.dumps({'type':'answer', 'results': response})}\n\n"
+        yield f"data: {json.dumps({'type':'answer', 'results': response})}\n\n"
 
 
 
