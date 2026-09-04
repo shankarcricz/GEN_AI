@@ -16,15 +16,15 @@ load_dotenv()
 
 import chromadb
 
-client = chromadb.CloudClient(
-  api_key=os.getenv("CHROMADB_API_KEY"),
-  tenant='59bb4bd3-b4e7-4be9-ad92-8e90e5226597',
-  database='genai'
-)
+# client = chromadb.CloudClient(
+#   api_key=os.getenv("CHROMADB_API_KEY"),
+#   tenant='59bb4bd3-b4e7-4be9-ad92-8e90e5226597',
+#   database='genai'
+# )
 
 
 # client = chromadb.PersistentClient(path=db_chroma_path) 
-collection = client.get_or_create_collection(name="job_fit_copilot")
+# collection = client.get_or_create_collection(name="job_fit_copilot")
 
 async def add_to_chroma_db(resume_text: dict, source_file: str):
     display_document = " " + (resume_text["subheading"] or "") + " " + (resume_text["heading"] or "") + " ".join(resume_text["bullets"]).strip()
@@ -145,9 +145,8 @@ def filter_results_by_distance(results: dict, max_distance: float = 1.0) -> list
 
 async def get_from_chroma_db():
     #i need to fetch theID column
-    results = collection.get(  
-    )
+    results = []
     return results
 def get_count_from_chroma_db():
-    count = collection.count()
+    count = []
     return count

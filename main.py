@@ -14,6 +14,7 @@ from services.load import load_pdf_and_add_to_chroma
 from fastapi.responses import StreamingResponse
 from services.embed import generate_content
 import json
+from tools.retrieve import retrieve_chunks
 
 app = FastAPI()
 
@@ -44,22 +45,10 @@ async def upload_resume(input_pdf: UploadFile = File(...), fileType : str = 'res
 
 
 async def fetch_answers(query :str):
-    raw_classification = await classification_of_question(query)
-    raw_classification = raw_classification.strip().lower()
-
-    filterBy = ''
-    # Parse LLM output — it may return verbose text; extract the known keyword
-    if "both" in raw_classification:
-        filterBy = "both"
-    elif "jd" in raw_classification or "job description" in raw_classification:
-        filterBy = "jd"
-    else:
-        filterBy = "resume"  # default fallback
-
-    print(f"[DEBUG] query='{query}' | raw_classification='{raw_classification}' | filterBy='{filterBy}'")
-    results = await retrieve(query, n_results=5, max_distance=0.42, filterBy=filterBy)  
-    print(results)
+   
     # return
+
+    results = await retrieve_chunks(query)
 
     listt = [r['distance'] for r in results]
     print(listt,"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
