@@ -5,6 +5,7 @@ from langgraph.constants import END
 from aiohttp import client_exceptions
 from services.traviliy import web_search_tool,web_search
 from services.rate_limit import with_retry
+from langgraph.types import interrupt
 import json
 import os
 from dotenv import load_dotenv
@@ -68,7 +69,12 @@ async def generate_text(retrieved_chunks:str, query:str) -> str:
 
 
 
-
+def approve_node(state):
+    decision = interrupt({
+        "question": "Search the web for this?",
+        "query": state['input']
+    })
+    return {"approved" : decision}
 
 
 #tools for langraph
@@ -85,9 +91,16 @@ async def call_model(state):
         previous_interaction_id=state["previous_id"],
     )
 
+
+    #just to mitigate errors
+    function_calls = [
+        {"type": "function_call", "name": step.name, "arguments": step.arguments, "id": step.id}
+        for step in response.steps if step.type == "function_call"
+    ]
+
     return {
         "previous_id": response.id,
-        "function_results": [step for step in response.steps if step.type == "function_call"],
+        "function_results": function_calls,
         "output": response.output_text,
         "iter_count": state["iter_count"] + 1,
     }
@@ -95,7 +108,8 @@ async def call_model(state):
 
 def should_continue(state):
     if state["function_results"] and state["iter_count"] < state["max_limit"]:
-        return "tool_call"
+
+        return "approve"
     else:
         return END
 
@@ -103,20 +117,24 @@ def should_continue(state):
     
 
 async def tool_call(state):
-    if not state['function_results']:
+    if not state['function_results'] or not state.get('approved', False):
         return {
-            "function_results": []
+            "function_results": [],
+            "output": "Web search was not approved."
         }
     
     new_function_results = []
     for step in state['function_results']:
-        if step.type == "function_call":
-           answer = await web_search(step.arguments['query'])
+        if step["type"] == "function_call":
+           arguments = step["arguments"]
+           if isinstance(arguments, str):
+               arguments = json.loads(arguments)
+           answer = await web_search(arguments['query'])
         #    print(answer)
            new_function_results.append({
                 "type": "function_result",
-                "name": step.name,
-                "call_id": step.id,
+                "name": step['name'],
+                "call_id": step['id'],
                 "result": [{"type": "text", "text": answer}],
            })
     return {

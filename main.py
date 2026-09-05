@@ -1,27 +1,29 @@
-from services.ollama import could_web_search_help
-import sys, os; sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from services.loadtest import run_load_test
-from services.evals import test_case_data
-from services.ollama import classification_of_question
-from services.load import retrieve
-from services.embed import llm_judge
-from services.evals import eval_metrics
-from services.chroma import get_from_chroma_db
-from services.load import llm_response
-from fastapi import FastAPI, UploadFile, File
-from fastapi.middleware.cors import CORSMiddleware
-from services.load import load_pdf_and_add_to_chroma
-from fastapi.responses import StreamingResponse
-from services.embed import generate_content
 import json
+import os
+import sys
+from uuid import uuid4
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
+from langgraph.types import Command
+from pydantic import BaseModel
+
+from services.chroma import get_from_chroma_db
+from services.evals import eval_metrics
+from services.embed import generate_content, llm_judge
+from services.load import llm_response, load_pdf_and_add_to_chroma
+from services.ollama import classification_of_question, could_web_search_help
 from tools.retrieve import retrieve_chunks
+
 
 app = FastAPI()
 
 origins = [
     "http://localhost:3000",
     "http://genai-shankar-rsbuild.s3-website.eu-north-1.amazonaws.com",
-    
 ]
 
 app.add_middleware(
@@ -35,151 +37,151 @@ app.add_middleware(
 
 @app.get("/health")
 def health_check():
-    return {"status":"OK"}
+    return {"status": "OK"}
+
 
 @app.post("/ingest")
-async def upload_resume(input_pdf: UploadFile = File(...), fileType : str = 'resume'):
+async def upload_resume(input_pdf: UploadFile = File(...), fileType: str = "resume"):
     content = await input_pdf.read()
     await load_pdf_and_add_to_chroma(content, fileType)
-    return {"status":200, "message":"success"}
+    return {"status": 200, "message": "success"}
 
 
-async def fetch_answers(query :str):
-   
-    # return
-
-    results = await retrieve_chunks(query)
-
-    listt = [r['distance'] for r in results]
-    print(listt,"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
-    should_search = False
-     
-    if len(results) == 0:
-        should_search = await could_web_search_help(query)
-        print(should_search,"++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
-
-
-
-    if len(results) == 0 and should_search=='false':
-        yield f"data: {json.dumps({'type':'no_context', 'results': 'No context found' })}\n\n"
-        return
-    
-    yield f"data: {json.dumps({'type': 'citations', 'results': results})}\n\n"
-
-    if should_search:
-        prompt = f"""The candidate asked: {query} 
-        We were not able to find a grounded answer from these chunks and it was not complete.
-        Answer the query using the tool call and make sure to give an appropriate answer
-        """
-
-        from graph.lang import app
-
-        yield f"data: {json.dumps({'type':'webSearch', 'results': 'Searching across the internet....'})}\n\n"
-
-        result = await app.ainvoke({
+def graph_input(prompt: str) -> dict:
+    return {
         "input": prompt,
         "previous_id": None,
         "function_results": [],
         "output": "",
+        "approved": False,
         "max_limit": 5,
         "iter_count": 0,
-        })
-        response = {}
-        response["answer"] = result["output"]
-        response['citations'] = []
-        yield f"data: {json.dumps({'type':'answer', 'results': response})}\n\n"
+    }
 
-    else:
-        response = await llm_response(query, results, raw_classification)
 
-        judge_response = await llm_judge(query, "\n".join([c["chunk"] for c in response["citations"]]), response["answer"])
+async def start_web_search(prompt: str):
+    from graph.lang import app as search_app
 
-        print(judge_response,"+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++")
+    thread_id = str(uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+    result = await search_app.ainvoke(graph_input(prompt), config=config)
+    return search_app, thread_id, config, result
 
-        if judge_response["groundedness"] < 3 or judge_response["could_web_search_help"]:
-            # response["answer"] = "Groundedness is less than 3"
-            retrieved_chunks = "\n".join([c["chunk"] for c in response["citations"]])
-            prompt = f"""The candidate asked: {query} 
-            Here are the retrieved chunks : {retrieved_chunks}.
-            We were not able to find a grounded answer from these chunks and it was not complete.
-            Answer the query using the tool call and make sure to give an appropriate answer
-            """
 
-            from graph.lang import app
+def sse_event(event_type: str, results, **extra) -> str:
+    payload = {"type": event_type, "results": results, **extra}
+    return f"data: {json.dumps(payload)}\n\n"
 
-            yield f"data: {json.dumps({'type':'webSearch', 'results': 'Searching across the internet....'})}\n\n"
 
-            result = await app.ainvoke({
-            "input": prompt,
-            "previous_id": None,
-            "function_results": [],
-            "output": "",
-            "max_limit": 5,
-            "iter_count": 0,
-            })
-            response["answer"] = result["output"]
-            response['citations'] = []
+def interrupt_payload(result) -> object:
+    interrupts = result.get("__interrupt__", ())
+    if not interrupts:
+        return None
+    interrupt = interrupts[0]
+    return getattr(interrupt, "value", interrupt)
 
-        
-    
-        yield f"data: {json.dumps({'type':'answer', 'results': response})}\n\n"
 
+async def fetch_answers(query: str):
+    results = await retrieve_chunks(query)
+    should_search = False
+
+    if not results:
+        should_search = await could_web_search_help(query)
+
+    if not results and not should_search:
+        yield sse_event("no_context", "No context found")
+        return
+
+    yield sse_event("citations", results)
+
+    if should_search:
+        prompt = f"""The candidate asked: {query}
+        We were not able to find a grounded answer from these chunks and it was not complete.
+        Answer the query using the tool call and make sure to give an appropriate answer.
+        """
+        yield sse_event("webSearch", "Searching across the internet....")
+        _, thread_id, _, result = await start_web_search(prompt)
+        if "__interrupt__" in result:
+            yield sse_event("approval_required", interrupt_payload(result), thread_id=thread_id)
+            return
+        yield sse_event("answer", {"answer": result.get("output", ""), "citations": []})
+        return
+
+    response = await llm_response(
+        query,
+        results,
+        raw_classification=await classification_of_question(query),
+    )
+    judge_response = await llm_judge(
+        query,
+        "\n".join(c["chunk"] for c in response["citations"]),
+        response["answer"],
+    )
+
+    if judge_response["groundedness"] < 3 or judge_response["could_web_search_help"]:
+        retrieved_chunks = "\n".join(c["chunk"] for c in response["citations"])
+        prompt = f"""The candidate asked: {query}
+        Here are the retrieved chunks: {retrieved_chunks}.
+        We were not able to find a grounded answer from these chunks and it was not complete.
+        Answer the query using the tool call and make sure to give an appropriate answer.
+        """
+        yield sse_event("webSearch", "Searching across the internet....")
+        _, thread_id, _, result = await start_web_search(prompt)
+        if "__interrupt__" in result:
+            yield sse_event("approval_required", interrupt_payload(result), thread_id=thread_id)
+            return
+        response["answer"] = result.get("output", "")
+        response["citations"] = []
+
+    yield sse_event("answer", response)
 
 
 @app.get("/retrieve")
-async def ask_question(query :str):
+async def ask_question(query: str):
     return StreamingResponse(fetch_answers(query), media_type="text/event-stream")
+
+
+class ApprovalRequest(BaseModel):
+    thread_id: str
+    approved: bool
+
+
+@app.post("/retrieve/approval")
+async def approve_web_search(request: ApprovalRequest):
+    from graph.lang import app as search_app
+
+    config = {"configurable": {"thread_id": request.thread_id}}
+    try:
+        state = await search_app.aget_state(config)
+    except Exception as exc:
+        raise HTTPException(status_code=404, detail="Unknown search approval request") from exc
+
+    if not state.values or not state.next:
+        raise HTTPException(status_code=409, detail="Search approval request is no longer pending")
+
+    result = await search_app.ainvoke(Command(resume=request.approved), config=config)
+    if "__interrupt__" in result:
+        raise HTTPException(status_code=409, detail="Search approval request is still interrupted")
+
+    return {"type": "answer", "results": {"answer": result.get("output", ""), "citations": []}}
+
 
 @app.get("/fetch")
 async def fetch():
-    res = await get_from_chroma_db()
-    return {"status":200, "response": res}
+    return {"status": 200, "response": await get_from_chroma_db()}
 
 
-
-
-@app.get('/help')
+@app.get("/help")
 async def helper():
-    # return await run_load_test()
     await generate_content()
-
-    # obj = {}
-    # test_cases = test_case_data["test_cases"]
-    # for i,test_case in enumerate(test_cases):
-    #     filterBy = test_case["category"]
-    #     results = retrieve(test_case["question"], n_results=5, max_distance=10, filterBy=filterBy)
-    #     obj[test_case['question']] = [r['distance'] for r in results]
-    # return obj
-
-
-
-
-     
-
-
-
-
 
 
 @app.get("/evals")
 async def evals():
-    res = await eval_metrics()
-    print(res)
-    return {"status":200,"response":res}
+    return {"status": 200, "response": await eval_metrics()}
 
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, port=8000)
-
-
-
-
-
-# GET http://localhost:8000/health
-# POST http://localhost:8000/ingest
-
-
-
-

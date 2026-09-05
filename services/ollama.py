@@ -247,7 +247,7 @@ async def could_web_search_help(query:str):
     
     data = json.loads(raw)
     print(data,"(((((((((((((((())))))))))))))))")
-    return data["answer"]
+    return str(data["answer"]).strip().lower() == "true"
 
 
 
