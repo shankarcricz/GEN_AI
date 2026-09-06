@@ -103,9 +103,14 @@ async def fetch_query_results(query: str, n_results: int = 5, max_distance: floa
     if filterBy != "both":
         params["source_file"] = filterBy
 
-    async with engine.connect() as conn:
-        result = await conn.execute(text(sql), params)
-        rows = result.fetchall()
+
+    try:
+        async with engine.connect() as conn:
+            result = await conn.execute(text(sql), params)
+            rows = result.fetchall()
+    except Exception as e:
+        print(f"Error occurred while fetching query results: {e}")
+        rows = []   
 
     results = [
         {

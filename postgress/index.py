@@ -18,6 +18,8 @@ DBNAME = os.getenv("dbname")
 DATABASE_URL = f"postgresql+asyncpg://{USER}:{PASSWORD}@{HOST}:{PORT}/{DBNAME}"
 
 # Create the SQLAlchemy engine
+
+
 engine = create_async_engine(DATABASE_URL, connect_args={"ssl": "require"})
 # If using Transaction Pooler or Session Pooler, we want to ensure we disable SQLAlchemy client side pooling -
 # https://docs.sqlalchemy.org/en/20/core/pooling.html#switching-pool-implementations

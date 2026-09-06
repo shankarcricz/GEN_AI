@@ -59,6 +59,21 @@ def graph_input(prompt: str) -> dict:
     }
 
 
+async def stream_web_search(prompt: str):
+    from graph.lang import app as search_app
+    thread_id = str(uuid4())
+    config = {"configurable": {"thread_id": thread_id}}
+
+    async for update in search_app.astream(graph_input(prompt), config=config, stream_mode="updates"):
+        for node_name, node_output in update.items():
+            if node_name == "__interrupt__":
+                interrupt_obj = node_output[0]
+                yield sse_event("approval_required", interrupt_obj.value, thread_id=thread_id)
+                return
+            print(f"Node: {node_name}, Output: {node_output}")
+            yield sse_event("webSearch", node_output, node_name=node_name, thread_id=thread_id)
+
+
 async def start_web_search(prompt: str):
     from graph.lang import app as search_app
 
@@ -100,13 +115,18 @@ async def fetch_answers(query: str):
         Answer the query using the tool call and make sure to give an appropriate answer.
         """
         yield sse_event("webSearch", "Searching across the internet....")
-        _, thread_id, _, result = await start_web_search(prompt)
-        if "__interrupt__" in result:
-            yield sse_event("approval_required", interrupt_payload(result), thread_id=thread_id)
-            return
-        yield sse_event("answer", {"answer": result.get("output", ""), "citations": []})
+        async for event in stream_web_search(prompt):
+            yield event
         return
+        
+        # _, thread_id, _, result = await start_web_search(prompt)
+        # if "__interrupt__" in result:
+        #     yield sse_event("approval_required", interrupt_payload(result), thread_id=thread_id)
+        #     return
+        # yield sse_event("answer", {"answer": result.get("output", ""), "citations": []})
+        # return
 
+    print(f"Results: {results}")
     response = await llm_response(
         query,
         results,
@@ -126,11 +146,16 @@ async def fetch_answers(query: str):
         Answer the query using the tool call and make sure to give an appropriate answer.
         """
         yield sse_event("webSearch", "Searching across the internet....")
-        _, thread_id, _, result = await start_web_search(prompt)
-        if "__interrupt__" in result:
-            yield sse_event("approval_required", interrupt_payload(result), thread_id=thread_id)
-            return
-        response["answer"] = result.get("output", "")
+        async for event in stream_web_search(prompt):
+            yield event
+        return
+        
+        # _, thread_id, _, result = await start_web_search(prompt)
+        # if "__interrupt__" in result:
+        #     yield sse_event("approval_required", interrupt_payload(result), thread_id=thread_id)
+        #     return
+        # yield sse_event("answer", {"answer": result.get("output", ""), "citations": []})
+        # return
         response["citations"] = []
 
     yield sse_event("answer", response)
