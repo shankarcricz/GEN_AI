@@ -15,7 +15,7 @@ from services.embed import generate_text, llm_chunk
 
 
 from services.chunking import semantic_chunk_document
-from services.chroma import add_to_chroma_db, get_from_chroma_db,get_count_from_chroma_db, fetch_query_results, filter_results_by_distance
+from services.chroma import add_to_chroma_db, fetch_query_results
 from fastapi.responses import StreamingResponse
 from langfuse.decorators import observe
 

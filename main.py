@@ -11,11 +11,10 @@ from fastapi.responses import StreamingResponse
 from langgraph.types import Command
 from pydantic import BaseModel
 
-from services.chroma import get_from_chroma_db
 from services.evals import eval_metrics
 from services.embed import generate_content, llm_judge
 from services.load import llm_response, load_pdf_and_add_to_chroma
-from services.ollama import classification_of_question, could_web_search_help
+from services.embed import classification_of_question, could_web_search_help
 from tools.retrieve import retrieve_chunks
 
 
@@ -94,6 +93,8 @@ def interrupt_payload(result) -> object:
         return None
     interrupt = interrupts[0]
     return getattr(interrupt, "value", interrupt)
+
+
 
 
 async def fetch_answers(query: str):
@@ -191,9 +192,7 @@ async def approve_web_search(request: ApprovalRequest):
     return {"type": "answer", "results": {"answer": result.get("output", ""), "citations": []}}
 
 
-@app.get("/fetch")
-async def fetch():
-    return {"status": 200, "response": await get_from_chroma_db()}
+
 
 
 @app.get("/help")

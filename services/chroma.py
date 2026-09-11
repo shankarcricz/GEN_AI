@@ -1,10 +1,8 @@
-import chromadb
 import hashlib
 try:
     from services.embed import embed_text
 except ModuleNotFoundError:
     from embed import embed_text
-import os
 from dotenv import load_dotenv
 from sqlalchemy import Text
 from postgress.index import engine
@@ -14,17 +12,8 @@ from sqlalchemy import text
 load_dotenv()
 
 
-import chromadb
-
-# client = chromadb.CloudClient(
-#   api_key=os.getenv("CHROMADB_API_KEY"),
-#   tenant='59bb4bd3-b4e7-4be9-ad92-8e90e5226597',
-#   database='genai'
-# )
 
 
-# client = chromadb.PersistentClient(path=db_chroma_path) 
-# collection = client.get_or_create_collection(name="job_fit_copilot")
 
 async def add_to_chroma_db(resume_text: dict, source_file: str):
     display_document = " " + (resume_text["subheading"] or "") + " " + (resume_text["heading"] or "") + " ".join(resume_text["bullets"]).strip()
@@ -128,30 +117,23 @@ async def fetch_query_results(query: str, n_results: int = 5, max_distance: floa
 
     return [r for r in results if r["distance"] < max_distance]
 
-def filter_results_by_distance(results: dict, max_distance: float = 1.0) -> list[dict]:
-    ids = results["ids"][0]
-    documents = results["documents"][0]
-    metadatas = results["metadatas"][0]
-    distances = results["distances"][0]
-    embeddings = results["embeddings"][0] if results.get("embeddings") is not None else [None] * len(ids)
+# def filter_results_by_distance(results: dict, max_distance: float = 1.0) -> list[dict]:
+#     ids = results["ids"][0]
+#     documents = results["documents"][0]
+#     metadatas = results["metadatas"][0]
+#     distances = results["distances"][0]
+#     embeddings = results["embeddings"][0] if results.get("embeddings") is not None else [None] * len(ids)
 
-    return [
-        {
-            "id": id_,
-            "document": document,
-            "embedding": embedding,
-            "metadata": metadata,
-            "distance": distance,
-        }
-        for id_, document, embedding, metadata, distance in zip(ids, documents, embeddings, metadatas, distances)
-        if distance < max_distance
-    ]
+#     return [
+#         {
+#             "id": id_,
+#             "document": document,
+#             "embedding": embedding,
+#             "metadata": metadata,
+#             "distance": distance,
+#         }
+#         for id_, document, embedding, metadata, distance in zip(ids, documents, embeddings, metadatas, distances)
+#         if distance < max_distance
+#     ]
 
 
-async def get_from_chroma_db():
-    #i need to fetch theID column
-    results = []
-    return results
-def get_count_from_chroma_db():
-    count = []
-    return count
