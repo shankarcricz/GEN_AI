@@ -26,6 +26,6 @@ python-multipart
 langfuse
 
 sqlalchemy 
-psycopg2
+psycopg2-binary
 
 asyncpg
